@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <title>The Satoshi Faucet - Free Satoshis</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="The Satoshi Faucet - a nostalgic tribute faucet giving away a few satoshis to keep the legacy alive." />
+  <meta name="description"
+    content="The Satoshi Faucet - a nostalgic tribute faucet giving away a few satoshis to keep the legacy alive." />
 
   <style>
     :root {
@@ -37,8 +39,10 @@
     header {
       text-align: center;
       margin-bottom: 50px;
-      position: relative;          /* so we can position the tap inside */
-      padding-left: 120px;         /* leave room for tap on the left */
+      position: relative;
+      /* so we can position the tap inside */
+      padding-left: 120px;
+      /* leave room for tap on the left */
     }
 
     .logo-area {
@@ -133,7 +137,7 @@
       margin: 0;
     }
 
-    .sidebar li + li {
+    .sidebar li+li {
       margin-top: 4px;
     }
 
@@ -299,6 +303,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="page">
     <header>
@@ -323,7 +328,8 @@
         <h2>Other Sites</h2>
         <ul>
           <li><a href="https://bitcoin.org" target="_blank" rel="noopener noreferrer">Bitcoin.org</a></li>
-          <li><a href="https://en.bitcoin.it/wiki/Main_Page" target="_blank" rel="noopener noreferrer">Bitcoin Wiki</a></li>
+          <li><a href="https://en.bitcoin.it/wiki/Main_Page" target="_blank" rel="noopener noreferrer">Bitcoin Wiki</a>
+          </li>
         </ul>
       </aside>
 
@@ -336,27 +342,38 @@
             receiving address, and press <strong>Get Some!</strong>
           </p>
 
-          <!-- Google reCAPTCHA -->
-          <form id="faucet-form" action="claim.php" method="POST" autocomplete="off">
+          <form id="faucet-form" autocomplete="off">
             <div class="captcha-wrap">
               <div class="captcha-note">
-                Please prove you’re human by completing the reCAPTCHA below.
+                We offer free sats only to humans or aliens but not robots.<br>
+                Please prove you're not an AI robot by completing the reCAPTCHA below.
               </div>
-              <!-- reCAPTCHA widget using your site key -->
-              <div
-                class="g-recaptcha"
-                data-sitekey="6LdX7wksAAAAAMQ86AekQ3IAyvy5YTJ6xgdbTwzv">
+              <div class="g-recaptcha" data-sitekey="6LdX7wksAAAAAMQ86AekQ3IAyvy5YTJ6xgdbTwzv">
               </div>
             </div>
 
             <div class="address-row">
               <label for="address-input">Your Satoshi Address:</label>
-              <input
-                id="address-input"
-                name="address"
-                type="text"
-                placeholder="bc1... or Lightning invoice"
-              />
+              <input id="address-input" name="address" type="text" placeholder="bc1... or Lightning invoice" />
+              <button type="submit" class="btn-primary" id="get-button">Get Some!</button>
+            </div>
+
+            <div class="status-message" id="status-message" aria-live="polite"></div>
+          </form>
+          <!-- Google reCAPTCHA -->
+          <form id="faucet-form" action="claim.php" method="POST" autocomplete="off" style="display: none;">
+            <div class="captcha-wrap">
+              <div class="captcha-note">
+                Please prove you’re human by completing the reCAPTCHA below.
+              </div>
+              <!-- reCAPTCHA widget using your site key -->
+              <div class="g-recaptcha" data-sitekey="6LdX7wksAAAAAMQ86AekQ3IAyvy5YTJ6xgdbTwzv">
+              </div>
+            </div>
+
+            <div class="address-row">
+              <label for="address-input">Your Satoshi Address:</label>
+              <input id="address-input" name="address" type="text" placeholder="bc1... or Lightning invoice" />
               <button type="submit" class="btn-primary" id="get-button">Get Some!</button>
             </div>
 
@@ -381,7 +398,8 @@
           <h2>How do I get a receiving address?</h2>
           <p>
             Download a Bitcoin or Lightning wallet (for example from
-            <a href="https://bitcoin.org/en/choose-your-wallet" target="_blank" rel="noopener noreferrer">bitcoin.org</a>).
+            <a href="https://bitcoin.org/en/choose-your-wallet" target="_blank"
+              rel="noopener noreferrer">bitcoin.org</a>).
             Your wallet will show you a receiving address or invoice you can paste here.
           </p>
         </section>
@@ -494,5 +512,91 @@
     })();
   </script>
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+  <script>
+    (function () {
+      const form = document.getElementById("faucet-form");
+      const addressEl = document.getElementById("address-input");
+      const statusEl = document.getElementById("status-message");
+      const getBtn = document.getElementById("get-button");
+      const balanceEl = document.getElementById("available-balance");
+
+      // Optional: track a front-end balance number (just cosmetic)
+      let available = 75000;
+      function updateBalanceDisplay() {
+        if (!balanceEl) return;
+        balanceEl.textContent = "▲ " + available.toLocaleString() + " satoshis available";
+      }
+      updateBalanceDisplay();
+
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        statusEl.textContent = "";
+        statusEl.className = "status-message";
+
+        const address = addressEl.value.trim();
+        if (!address) {
+          statusEl.textContent = "Please paste a valid Bitcoin or Lightning receiving address.";
+          statusEl.classList.add("status-error");
+          return;
+        }
+
+        let captchaResponse = "";
+        if (window.grecaptcha) {
+          captchaResponse = grecaptcha.getResponse();
+        }
+        if (!captchaResponse) {
+          statusEl.textContent = "Please complete the reCAPTCHA before claiming.";
+          statusEl.classList.add("status-error");
+          return;
+        }
+
+        getBtn.disabled = true;
+
+        const formData = new FormData();
+        formData.append("address", address);
+        formData.append("g-recaptcha-response", captchaResponse);
+
+        fetch("claim.php", {
+          method: "POST",
+          body: formData
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.status === "success") {
+              statusEl.textContent = data.message + " Sent to: " + data.walletAddress;
+              statusEl.classList.add("status-success");
+
+              if (typeof data.satsSent === "number") {
+                available = Math.max(0, available - data.satsSent);
+                updateBalanceDisplay();
+              }
+            } else if (data.status === "already_claimed") {
+              const msg =
+                "You’ve already claimed from this faucet.\n" +
+                "Sats were sent to: " + (data.walletAddress || address);
+              statusEl.textContent = msg;
+              statusEl.classList.add("status-error");
+            } else {
+              statusEl.textContent = data.message || "Something went wrong. Please try again.";
+              statusEl.classList.add("status-error");
+            }
+          })
+          .catch((err) => {
+            console.error(err);
+            statusEl.textContent = "Network error. Please try again.";
+            statusEl.classList.add("status-error");
+          })
+          .finally(() => {
+            getBtn.disabled = false;
+            if (window.grecaptcha) {
+              grecaptcha.reset();
+            }
+          });
+      });
+    })();
+  </script>
+
+
 </body>
+
 </html>

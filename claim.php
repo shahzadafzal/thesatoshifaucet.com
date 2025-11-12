@@ -1,42 +1,61 @@
 <?php
 // claim.php
+header('Content-Type: application/json');
 
-// 1. CONFIG: set your secret key from Google reCAPTCHA admin
-// Load local, non-committed config
-require __DIR__ . '/config.local.php';
+$configFile = __DIR__ . '/config.local.php';
+if (!file_exists($configFile)) {
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Server config missing. Please try again later.'
+    ]);
+    exit;
+}
+require $configFile;
 
-// Now use the variable from that file
-if (!isset($RECAPTCHA_SECRET_KEY) || !$RECAPTCHA_SECRET_KEY) {
-    die('Server misconfiguration: reCAPTCHA secret key is not set.');
+// Validate config
+if (empty($RECAPTCHA_SECRET_KEY)) {
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Server misconfiguration (reCAPTCHA).'
+    ]);
+    exit;
 }
 
-$secretKey = $RECAPTCHA_SECRET_KEY;
-
-if (!$secretKey) {
-    // Optional: safer fallback / error
-    die('Server misconfiguration: reCAPTCHA secret key is not set.');
+if (empty($DB_HOST) || empty($DB_NAME) || empty($DB_USER)) {
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Server misconfiguration (database).'
+    ]);
+    exit;
 }
 
-
-// 2. Read POST data
+// Get POST data
 $address      = isset($_POST['address']) ? trim($_POST['address']) : '';
 $captchaToken = isset($_POST['g-recaptcha-response']) ? $_POST['g-recaptcha-response'] : '';
-$userIp       = $_SERVER['REMOTE_ADDR'] ?? '';
+$userIp       = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+$userAgent    = $_SERVER['HTTP_USER_AGENT'] ?? '';
 
-// Basic validation
 if ($address === '') {
-    die('Error: Please provide a Bitcoin or Lightning address.');
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Please provide a Bitcoin or Lightning address.'
+    ]);
+    exit;
 }
 
 if ($captchaToken === '') {
-    die('Error: Please complete the reCAPTCHA.');
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Please complete the reCAPTCHA.'
+    ]);
+    exit;
 }
 
-// 3. Verify reCAPTCHA with Google
+// 1) Verify reCAPTCHA with Google
 $verifyUrl = 'https://www.google.com/recaptcha/api/siteverify';
 
 $postData = http_build_query([
-    'secret'   => $secretKey,
+    'secret'   => $RECAPTCHA_SECRET_KEY,
     'response' => $captchaToken,
     'remoteip' => $userIp,
 ]);
@@ -50,82 +69,102 @@ $opts = [
     ],
 ];
 
-$context  = stream_context_create($opts);
-$result   = file_get_contents($verifyUrl, false, $context);
+$context = stream_context_create($opts);
+$result  = file_get_contents($verifyUrl, false, $context);
 
 if ($result === false) {
-    die('Error: Could not contact reCAPTCHA verification server.');
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Could not contact reCAPTCHA verification server.'
+    ]);
+    exit;
 }
 
 $decoded = json_decode($result, true);
 
-// 4. Check verification result
 if (empty($decoded['success']) || !$decoded['success']) {
-    // Optionally inspect $decoded['error-codes'] for debugging
-    die('Error: reCAPTCHA verification failed. Please try again.');
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'reCAPTCHA verification failed. Please try again.'
+    ]);
+    exit;
 }
 
-// At this point, reCAPTCHA is valid – user is likely human
+// 2) Connect to MySQL
+try {
+    $dsn = "mysql:host={$DB_HOST};dbname={$DB_NAME};charset=utf8mb4";
+    $pdo = new PDO($dsn, $DB_USER, $DB_PASS, [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    ]);
+} catch (PDOException $e) {
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Database connection failed.'
+    ]);
+    exit;
+}
 
-// 5. TODO: Your faucet logic goes here.
-// - Check user/IP/rate limits
-// - Check faucet balance
-// - Send sats from your wallet / LN node
-// - Log the payout
+// 3) Check existing claim by wallet or IP
+$checkStmt = $pdo->prepare("
+    SELECT wallet_address, ip_address, sats_sent, created_at
+    FROM faucet_claims
+    WHERE wallet_address = :addr OR ip_address = :ip
+    LIMIT 1
+");
+$checkStmt->execute([
+    ':addr' => $address,
+    ':ip'   => $userIp,
+]);
+$existing = $checkStmt->fetch();
 
-// For now, just show a simple confirmation
-$rewardPerClaim = 500; // sats, example
+if ($existing) {
+    // Already claimed – show friendly message + the wallet it was sent to
+    echo json_encode([
+        'status'        => 'already_claimed',
+        'message'       => 'You have already received sats from this faucet.',
+        'walletAddress' => $existing['wallet_address'],
+        'ipAddress'     => $existing['ip_address'],
+        'satsSent'      => (int)$existing['sats_sent'],
+        'claimedAt'     => $existing['created_at'],
+    ]);
+    exit;
+}
 
+// 4) New claim allowed
+$rewardPerClaim = 500; // sats – your faucet amount
+
+// TODO: here you would send sats via your wallet / Lightning backend
+// e.g. call an API, communicate with LN node, etc.
+// For now we just simulate success.
+
+try {
+    $insertStmt = $pdo->prepare("
+        INSERT INTO faucet_claims (wallet_address, ip_address, sats_sent, user_agent)
+        VALUES (:addr, :ip, :sats, :ua)
+    ");
+    $insertStmt->execute([
+        ':addr' => $address,
+        ':ip'   => $userIp,
+        ':sats' => $rewardPerClaim,
+        ':ua'   => $userAgent,
+    ]);
+} catch (PDOException $e) {
+    // Could be unique constraint violation (race condition)
+    echo json_encode([
+        'status'  => 'error',
+        'message' => 'Could not record claim (maybe already claimed).',
+    ]);
+    exit;
+}
+
+// If we reached here, claim recorded and sats “sent”
+echo json_encode([
+    'status'        => 'success',
+    'message'       => 'Your sats are on the way. 🎉',
+    'walletAddress' => $address,
+    'ipAddress'     => $userIp,
+    'satsSent'      => $rewardPerClaim,
+]);
+exit;
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Satoshi Faucet – Claim Result</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: #ffffff;
-            color: #222;
-            padding: 24px 16px;
-        }
-        .box {
-            max-width: 600px;
-            margin: 0 auto;
-            border: 1px solid #ddd;
-            padding: 16px 20px;
-            background: #fafafa;
-        }
-        h1 {
-            font-size: 1.4rem;
-            margin-top: 0;
-        }
-        .success {
-            color: #0a7f00;
-            margin-bottom: 8px;
-        }
-        a {
-            color: #1a0dab;
-        }
-    </style>
-</head>
-<body>
-<div class="box">
-    <h1>The Satoshi Faucet</h1>
-    <p class="success">
-        ✅ reCAPTCHA passed. A payout of <strong><?php echo number_format($rewardPerClaim); ?> sats</strong>
-        would now be sent to:
-    </p>
-    <p><code><?php echo htmlspecialchars($address, ENT_QUOTES, 'UTF-8'); ?></code></p>
-
-    <p style="margin-top:16px;">
-        (This is a demo message – hook in your real payout logic here.)
-    </p>
-
-    <p style="margin-top:24px;">
-        <a href="index.html">&larr; Back to The Satoshi Faucet</a>
-    </p>
-</div>
-</body>
-</html>
