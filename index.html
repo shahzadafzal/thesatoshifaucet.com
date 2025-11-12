@@ -337,7 +337,7 @@
           </p>
 
           <!-- Google reCAPTCHA -->
-          <form id="faucet-form" autocomplete="off">
+          <form id="faucet-form" action="claim.php" method="POST" autocomplete="off">
             <div class="captcha-wrap">
               <div class="captcha-note">
                 Please prove you’re human by completing the reCAPTCHA below.
@@ -493,5 +493,6 @@
       });
     })();
   </script>
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </body>
 </html>
