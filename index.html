@@ -36,7 +36,9 @@
 
     header {
       text-align: center;
-      margin-bottom: 24px;
+      margin-bottom: 50px;
+      position: relative;          /* so we can position the tap inside */
+      padding-left: 120px;         /* leave room for tap on the left */
     }
 
     .logo-area {
@@ -77,6 +79,15 @@
       border-radius: 50%;
       bottom: 4px;
       left: 16px;
+    }
+
+    /* Tap image in the top-left */
+    .tap-image {
+      position: absolute;
+      left: 0;
+      top: 0;
+      max-width: 120px;
+      height: auto;
     }
 
     h1 {
@@ -164,75 +175,10 @@
       margin-bottom: 12px;
     }
 
-    .captcha-display {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 8px;
-      gap: 12px;
-    }
-
-    .captcha-word-image {
-      flex: 3;
-      height: 52px;
-      background: #f2f2f2;
-      border: 1px solid #ccc;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: "Courier New", monospace;
-      font-size: 1.4rem;
-      letter-spacing: 2px;
-      text-transform: lowercase;
-    }
-
-    .captcha-word-plain {
-      flex: 2;
-      height: 52px;
-      background: #e6e6e6;
-      border: 1px solid #ccc;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.4rem;
-      text-transform: lowercase;
-    }
-
-    .captcha-input-row {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.85rem;
-    }
-
-    .captcha-input-row label {
-      white-space: nowrap;
-    }
-
-    .captcha-input-row input[type="text"] {
-      flex: 1;
-      min-width: 140px;
-      padding: 6px 8px;
-      border: 1px solid #ccc;
-      border-radius: 2px;
-      font-size: 0.9rem;
-    }
-
-    .recaptcha-badge {
-      margin-left: auto;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
+    .captcha-note {
       font-size: 0.8rem;
-    }
-
-    .recaptcha-logo {
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      border: 1px solid #999;
-      display: inline-block;
+      color: #555;
+      margin-bottom: 8px;
     }
 
     .address-row {
@@ -330,6 +276,19 @@
       }
     }
 
+    /* Make the tap behave nicely on small screens */
+    @media (max-width: 600px) {
+      header {
+        padding-left: 0;
+      }
+
+      .tap-image {
+        position: static;
+        display: block;
+        margin: 0 auto 8px;
+      }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       * {
         scroll-behavior: auto !important;
@@ -343,6 +302,9 @@
 <body>
   <div class="page">
     <header>
+      <!-- Tap graphic (replace tap.png with your actual file) -->
+      <img src="tap.png" alt="Faucet" class="tap-image" />
+
       <div class="logo-area">
         <div class="faucet-icon" aria-hidden="true"></div>
         <div>
@@ -370,24 +332,20 @@
         <div class="faucet-panel">
           <div class="faucet-panel-title">Get Satoshis from the Satoshi Faucet</div>
           <p class="faucet-panel-text">
-            I’m giving away a few satoshis per visitor. Just solve the “captcha”, enter your Lightning or Bitcoin
+            I’m giving away a few satoshis per visitor. Just complete the reCAPTCHA, enter your Lightning or Bitcoin
             receiving address, and press <strong>Get Some!</strong>
           </p>
 
-          <!-- Fake captcha UI (front-end only) -->
+          <!-- Google reCAPTCHA -->
           <form id="faucet-form" autocomplete="off">
             <div class="captcha-wrap">
-              <div class="captcha-display">
-                <div class="captcha-word-image" id="captcha-distorted">satoshi</div>
-                <div class="captcha-word-plain" id="captcha-plain">legacy</div>
+              <div class="captcha-note">
+                Please prove you’re human by completing the reCAPTCHA below.
               </div>
-              <div class="captcha-input-row">
-                <label for="captcha-input">Type the two words:</label>
-                <input id="captcha-input" name="captcha" type="text" placeholder="satoshi legacy" />
-                <span class="recaptcha-badge">
-                  <span class="recaptcha-logo" aria-hidden="true"></span>
-                  <span>Faux&nbsp;Captcha</span>
-                </span>
+              <!-- reCAPTCHA widget using your site key -->
+              <div
+                class="g-recaptcha"
+                data-sitekey="6LdX7wksAAAAAMQ86AekQ3IAyvy5YTJ6xgdbTwzv">
               </div>
             </div>
 
@@ -451,13 +409,14 @@
     </div>
   </div>
 
+  <!-- Google reCAPTCHA API -->
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+
   <script>
     // Simple front-end demo logic.
-    // Replace this with real backend calls when you wire up the faucet.
-
+    // IMPORTANT: In production, you must verify the reCAPTCHA token on your server.
     (function () {
       const form = document.getElementById("faucet-form");
-      const captchaInput = document.getElementById("captcha-input");
       const addressInput = document.getElementById("address-input");
       const statusEl = document.getElementById("status-message");
       const getBtn = document.getElementById("get-button");
@@ -478,11 +437,21 @@
         statusEl.textContent = "";
         statusEl.className = "status-message";
 
-        const captcha = captchaInput.value.trim().toLowerCase();
         const address = addressInput.value.trim();
 
-        if (!captcha || captcha !== "satoshi legacy") {
-          statusEl.textContent = "Sorry, the captcha didn’t match. Please type: satoshi legacy";
+        // Check Google reCAPTCHA client-side (real security must be server-side)
+        let captchaResponse = "";
+        try {
+          // grecaptcha is provided by the reCAPTCHA script
+          if (window.grecaptcha) {
+            captchaResponse = grecaptcha.getResponse();
+          }
+        } catch (e) {
+          // ignore; will be treated as empty
+        }
+
+        if (!captchaResponse) {
+          statusEl.textContent = "Please complete the reCAPTCHA before claiming.";
           statusEl.classList.add("status-error");
           return;
         }
@@ -508,8 +477,13 @@
           rewardPerClaim.toLocaleString() +
           " sats would be sent to " +
           address +
-          " once the real backend is connected.";
+          " once the real backend is connected (after verifying reCAPTCHA server-side).";
         statusEl.classList.add("status-success");
+
+        // Reset reCAPTCHA for another try
+        if (window.grecaptcha) {
+          grecaptcha.reset();
+        }
 
         // Briefly disable button to mimic rate limiting
         getBtn.disabled = true;
