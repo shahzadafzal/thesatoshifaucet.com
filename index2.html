@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Satoshi Faucet - Free Satoshis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .faucet-img {
+            width: 120px;
+            height: auto;
+        }
+
+        h1 {
+            font-size: 3em;
+            color: #ccc;
+            font-weight: 300;
+        }
+
+        .sidebar {
+            background: white;
+            padding: 15px;
+            border: 1px solid #ddd;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+
+        .available {
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .other-sites {
+            color: #999;
+            margin-bottom: 5px;
+        }
+
+        .site-link {
+            color: #ccc;
+            text-decoration: none;
+            display: block;
+            margin: 3px 0;
+        }
+
+        .main-content {
+            background: white;
+            padding: 30px;
+            border: 1px solid #ddd;
+        }
+
+        h2 {
+            font-size: 1.3em;
+            margin: 25px 0 15px 0;
+            color: #333;
+        }
+
+        .faucet-box {
+            background: #fff;
+            border: 3px solid #f90;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .captcha-container {
+            background: #f9f9f9;
+            border: 2px solid #ddd;
+            padding: 15px;
+            margin: 15px 0;
+            display: inline-block;
+        }
+
+        .captcha-text {
+            font-size: 2em;
+            font-weight: bold;
+            letter-spacing: 8px;
+            color: #333;
+            font-style: italic;
+            text-decoration: line-through;
+            margin-bottom: 10px;
+        }
+
+        .captcha-input {
+            width: 100%;
+            max-width: 300px;
+            padding: 8px;
+            font-size: 1em;
+            border: 1px solid #ccc;
+            margin-top: 10px;
+        }
+
+        .address-container {
+            margin: 20px 0;
+        }
+
+        .address-input {
+            width: 100%;
+            max-width: 400px;
+            padding: 10px;
+            font-size: 1em;
+            border: 1px solid #ccc;
+            margin-right: 10px;
+        }
+
+        .btn {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            font-size: 1em;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        .btn:hover {
+            background: #357abd;
+        }
+
+        .info-text {
+            color: #666;
+            font-size: 0.95em;
+            margin: 10px 0;
+        }
+
+        .code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        .quote {
+            font-style: italic;
+            color: #666;
+            margin-top: 10px;
+        }
+
+        .signature {
+            color: #999;
+            font-size: 0.9em;
+        }
+
+        .success-msg {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .error-msg {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2em;
+            }
+
+            header {
+                justify-content: center;
+                text-align: center;
+            }
+
+            .faucet-img {
+                width: 80px;
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+
+            .captcha-text {
+                font-size: 1.5em;
+                letter-spacing: 4px;
+            }
+
+            .address-input {
+                margin-bottom: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .main-content {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="available">₿<span id="available">10000</span> satoshis available</div>
+            <div class="other-sites">Other Sites:</div>
+            <a href="#" class="site-link">Bitcoin.org</a>
+            <a href="#" class="site-link">Bitcoin Market</a>
+        </div>
+
+        <header>
+            <svg class="faucet-img" viewBox="0 0 100 150" xmlns="http://www.w3.org/2000/svg">
+                <rect x="35" y="10" width="30" height="15" fill="#8B0000" rx="2"/>
+                <rect x="45" y="0" width="10" height="12" fill="#8B0000"/>
+                <path d="M 30 25 L 70 25 L 65 40 L 35 40 Z" fill="#A52A2A"/>
+                <rect x="40" y="40" width="20" height="50" fill="#CD5C5C"/>
+                <ellipse cx="50" cy="70" rx="12" ry="8" fill="#4a90e2"/>
+                <path d="M 50 78 Q 45 95 40 110 Q 50 105 50 120 Q 50 105 60 110 Q 55 95 50 78" fill="#87CEEB" opacity="0.7"/>
+            </svg>
+            <h1>Free Satoshis</h1>
+        </header>
+
+        <div class="main-content">
+            <h2>Get Satoshis from the Satoshi Faucet</h2>
+            <p class="info-text">I'm giving away <strong>100 satoshis</strong> per visitor; just solve the "captcha" then enter your Bitcoin Receiving address and press Get Some:</p>
+
+            <div class="faucet-box">
+                <div class="captcha-container">
+                    <div class="captcha-text" id="captcha"></div>
+                    <label style="font-size: 0.9em; color: #666;">Type the two words:</label>
+                    <input type="text" class="captcha-input" id="captchaInput" placeholder="Enter the words">
+                </div>
+
+                <div class="address-container">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">Your Bitcoin Address:</label>
+                    <input type="text" class="address-input" id="btcAddress" placeholder="1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa">
+                    <button class="btn" onclick="claimSatoshis()">Get Some!</button>
+                </div>
+
+                <div class="success-msg" id="successMsg"></div>
+                <div class="error-msg" id="errorMsg"></div>
+            </div>
+
+            <h2>What are Satoshis?</h2>
+            <p class="info-text">A Satoshi is the smallest unit of Bitcoin, named after Bitcoin's creator Satoshi Nakamoto. One Bitcoin equals 100,000,000 Satoshis. Like Bitcoin, Satoshis are created and controlled by anybody who wants to be part of the Bitcoin network. Visit the <strong>Bitcoin.org</strong> website for all the geeky details.</p>
+
+            <h2>How do I get a Bitcoin Receiving Address?</h2>
+            <p class="info-text">Download and install the Bitcoin program from <strong>www.bitcoin.org</strong>. At the top of its main window it will show you your Bitcoin Address.</p>
+
+            <h2>I've got Satoshis; how can I help?</h2>
+            <p class="info-text">Send them to the Satoshi Faucet at address <span class="code">1SvSxaa1XYrbSbA5VbXbCrYv9xbcV1zXY1</span> and they'll be given away. It may take up to 30 minutes for your donation to be added to the amount available.</p>
+
+            <h2>What's the catch?</h2>
+            <p class="info-text quote">No catch-- I want Bitcoin to be successful, so I created this little service to give you a few satoshis to start with.</p>
+            <p class="signature">-- satoshi</p>
+        </div>
+    </div>
+
+    <script>
+        const words = ['house', 'ocean', 'tiger', 'crypto', 'mountain', 'sunset', 'rocket', 'galaxy', 'forest', 'thunder'];
+        let currentCaptcha = '';
+
+        function generateCaptcha() {
+            const w1 = words[Math.floor(Math.random() * words.length)];
+            const w2 = words[Math.floor(Math.random() * words.length)];
+            currentCaptcha = `${w1} ${w2}`;
+            document.getElementById('captcha').textContent = currentCaptcha;
+        }
+
+        function claimSatoshis() {
+            const input = document.getElementById('captchaInput').value.trim().toLowerCase();
+            const address = document.getElementById('btcAddress').value.trim();
+            const successMsg = document.getElementById('successMsg');
+            const errorMsg = document.getElementById('errorMsg');
+
+            successMsg.style.display = 'none';
+            errorMsg.style.display = 'none';
+
+            if (!address) {
+                errorMsg.textContent = 'Please enter your Bitcoin address!';
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            if (input !== currentCaptcha.toLowerCase()) {
+                errorMsg.textContent = 'Captcha incorrect. Please try again!';
+                errorMsg.style.display = 'block';
+                generateCaptcha();
+                document.getElementById('captchaInput').value = '';
+                return;
+            }
+
+            const amount = 100;
+            const available = parseInt(document.getElementById('available').textContent);
+            
+            if (available < amount) {
+                errorMsg.textContent = 'Sorry, the faucet is empty! Please check back later.';
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            document.getElementById('available').textContent = available - amount;
+            successMsg.textContent = `Success! ${amount} satoshis sent to ${address.substring(0, 20)}... Please allow up to 30 minutes for the transaction to confirm.`;
+            successMsg.style.display = 'block';
+
+            document.getElementById('captchaInput').value = '';
+            document.getElementById('btcAddress').value = '';
+            generateCaptcha();
+        }
+
+        document.getElementById('captchaInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                claimSatoshis();
+            }
+        });
+
+        generateCaptcha();
+    </script>
+</body>
+</html>
