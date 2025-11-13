@@ -4,5 +4,5 @@ build/
 .env
 *.log
 .DS_Store
-.bak
+*.bak
 config.local.php
