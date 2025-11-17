@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>How to Create a Lightning Invoice (100 sats)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description"
+        content="Step-by-step guide on how to create a Bitcoin Lightning invoice (BOLT11) in popular free wallets such as Wallet of Satoshi, Phoenix, Muun, Breez, and BlueWallet." />
+  <style>
+    :root {
+      --accent: #c9302c;
+      --accent-soft: #fce7e6;
+      --border-color: #ddd;
+      --bg-light: #fafafa;
+      --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: var(--font-main);
+      background: #ffffff;
+      color: #222;
+      line-height: 1.6;
+    }
+
+    .page {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 24px 16px 40px;
+    }
+
+    header {
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      margin: 0 0 4px;
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+      color: #555;
+    }
+
+    a {
+      color: #1a0dab;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .back-link {
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+      display: inline-block;
+    }
+
+    .wallet-list {
+      margin: 16px 0 24px;
+      padding: 12px;
+      background: var(--bg-light);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 0.95rem;
+    }
+
+    .wallet-list strong {
+      display: inline-block;
+      margin-bottom: 4px;
+    }
+
+    .wallet-link-list {
+      margin: 4px 0 0 0;
+      padding-left: 20px;
+    }
+
+    .wallet-link-list li {
+      margin-bottom: 2px;
+    }
+
+    section.wallet-guide {
+      margin-bottom: 28px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 16px 16px 12px;
+    }
+
+    section.wallet-guide h2 {
+      margin-top: 0;
+      font-size: 1.3rem;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: #71110f;
+      margin-left: 4px;
+    }
+
+    .steps {
+      margin: 10px 0 8px;
+      padding-left: 20px;
+      font-size: 0.95rem;
+    }
+
+    .steps li {
+      margin-bottom: 4px;
+    }
+
+    .example-box {
+      margin-top: 10px;
+      padding: 8px 10px;
+      border-left: 3px solid var(--accent);
+      background: #fff7f7;
+      font-size: 0.9rem;
+    }
+
+    .tip {
+      font-size: 0.85rem;
+      color: #555;
+      margin-top: 4px;
+    }
+
+    code {
+      font-family: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.85rem;
+      background: #f5f5f5;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+
+    footer {
+      margin-top: 32px;
+      font-size: 0.8rem;
+      color: #777;
+      border-top: 1px solid var(--border-color);
+      padding-top: 10px;
+    }
+
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 1.5rem;
+      }
+      section.wallet-guide {
+        padding: 14px 12px 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <a href="index.html" class="back-link">&larr; Back to The Satoshi Faucet</a>
+      <h1>How to Create a Lightning Invoice (100 sats)</h1>
+      <div class="subtitle">
+        Follow these simple steps in your favorite Lightning wallet to generate a BOLT11 invoice you can paste into the faucet.
+      </div>
+    </header>
+
+    <div class="wallet-list">
+      <strong>Supported examples on this page:</strong>
+      <ul class="wallet-link-list">
+        <li><a href="#wallet-of-satoshi">Wallet of Satoshi</a></li>
+        <li><a href="#phoenix">Phoenix Wallet</a></li>
+        <li><a href="#muun">Muun</a></li>
+        <li><a href="#breez">Breez</a></li>
+        <li><a href="#bluewallet">BlueWallet</a></li>
+      </ul>
+      <div class="tip">
+        Any other non-custodial or custodial Lightning wallet that can create a Lightning invoice will also work – just create an invoice for the amount the faucet specifies (for example, 100 sats) and paste the BOLT11 string.
+      </div>
+    </div>
+
+    <!-- Wallet of Satoshi -->
+    <section class="wallet-guide" id="wallet-of-satoshi">
+      <h2>Wallet of Satoshi <span class="badge">Recommended for beginners</span></h2>
+      <p>
+        <a href="https://www.walletofsatoshi.com/" target="_blank" rel="noopener noreferrer">
+          Wallet of Satoshi
+        </a>
+        is a simple custodial Bitcoin Lightning wallet available on iOS and Android.
+      </p>
+
+      <ol class="steps">
+        <li>Install Wallet of Satoshi from your app store and open the app.</li>
+        <li>If prompted, optionally back up or secure the wallet according to the app instructions.</li>
+        <li>On the main screen, tap <strong>Receive</strong>.</li>
+        <li>Select <strong>Lightning</strong> (if it asks between Bitcoin / Lightning).</li>
+        <li>
+          In the amount field, set the amount to
+          <strong>100 sats</strong> (or whatever amount the faucet tells you to request).
+        </li>
+        <li>Confirm the amount and tap to generate the invoice.</li>
+        <li>
+          The app will show a QR code and a long text starting with <code>lnbc...</code> – this is your
+          <strong>Lightning invoice (BOLT11)</strong>.
+        </li>
+        <li>
+          Tap the text (or a “Copy” button) to copy the invoice string to your clipboard.
+        </li>
+        <li>Return to <strong>The Satoshi Faucet</strong> page and paste the invoice into the input box.</li>
+      </ol>
+
+      <div class="example-box">
+        <strong>Tip:</strong> The faucet doesn’t need the QR code image – it just needs the text version of the invoice
+        (for example: <code>lnbc1u1p...</code>).
+      </div>
+    </section>
+
+    <!-- Phoenix -->
+    <section class="wallet-guide" id="phoenix">
+      <h2>Phoenix Wallet</h2>
+      <p>
+        <a href="https://phoenix.acinq.co/" target="_blank" rel="noopener noreferrer">
+          Phoenix
+        </a>
+        is a non-custodial Lightning wallet (you keep your keys) available on Android and iOS.
+      </p>
+
+      <ol class="steps">
+        <li>Install Phoenix from your app store and open the app.</li>
+        <li>Follow the onboarding to create a new wallet and write down your recovery phrase.</li>
+        <li>On the home screen, tap the <strong>Receive</strong> button.</li>
+        <li>
+          In the amount field, enter <strong>100 sats</strong> (or the amount the faucet specifies).
+          Phoenix may show the amount in sats or in your fiat currency – make sure it matches roughly 100 sats.
+        </li>
+        <li>Confirm to generate the Lightning invoice.</li>
+        <li>Phoenix will show a QR code and the BOLT11 invoice text.</li>
+        <li>Tap <strong>Copy</strong> (or tap the invoice text) to copy the <code>lnbc...</code> invoice.</li>
+        <li>Paste that invoice into the faucet’s “Lightning invoice” field.</li>
+      </ol>
+
+      <div class="example-box">
+        <strong>Note:</strong> With non-custodial wallets like Phoenix, you control your funds. Make sure you keep your
+        recovery phrase safe.
+      </div>
+    </section>
+
+    <!-- Muun -->
+    <section class="wallet-guide" id="muun">
+      <h2>Muun Wallet</h2>
+      <p>
+        <a href="https://muun.com/" target="_blank" rel="noopener noreferrer">
+          Muun
+        </a>
+        is a Bitcoin wallet that supports sending and receiving via Lightning using a unified Bitcoin address and invoices.
+      </p>
+
+      <ol class="steps">
+        <li>Install Muun from your app store and open the app.</li>
+        <li>Create a new wallet and follow the backup steps (email and/or recovery instructions).</li>
+        <li>On the main screen, tap <strong>Receive</strong>.</li>
+        <li>
+          Choose the option that lets you receive over <strong>Lightning</strong> (Muun may show both on-chain and Lightning options).
+        </li>
+        <li>Enter the amount as <strong>100 sats</strong> (or your faucet’s chosen amount).</li>
+        <li>Generate the payment request.</li>
+        <li>
+          Muun will display a QR code and a payment link or BOLT11 invoice. Look for the invoice that starts with
+          <code>lnbc</code>.
+        </li>
+        <li>Copy the invoice text to your clipboard.</li>
+        <li>Paste the invoice into The Satoshi Faucet “Lightning invoice” field.</li>
+      </ol>
+
+      <div class="example-box">
+        <strong>Tip:</strong> If Muun shows a link instead of a raw invoice, there is usually an option like
+        “Show invoice” or “Copy invoice” – you want the plain text version that starts with <code>lnbc</code>.
+      </div>
+    </section>
+
+    <!-- Breez -->
+    <section class="wallet-guide" id="breez">
+      <h2>Breez</h2>
+      <p>
+        <a href="https://breez.technology/" target="_blank" rel="noopener noreferrer">
+          Breez
+        </a>
+        is a Lightning wallet and point-of-sale app with built-in services.
+      </p>
+
+      <ol class="steps">
+        <li>Install Breez from your app store and launch the app.</li>
+        <li>Set up your wallet and follow any backup/security instructions.</li>
+        <li>From the main screen or POS view, tap <strong>Receive</strong> or <strong>Invoice</strong>.</li>
+        <li>
+          Set the amount to <strong>100 sats</strong> (or the faucet’s specified amount). Breez might use satoshis
+          or your local currency – choose sats if possible.
+        </li>
+        <li>Generate the Lightning invoice.</li>
+        <li>Breez will show a QR code and an invoice string starting with <code>lnbc</code>.</li>
+        <li>Tap to copy the invoice text.</li>
+        <li>Paste it into The Satoshi Faucet on the “Lightning invoice” field.</li>
+      </ol>
+
+      <div class="example-box">
+        <strong>Hint:</strong> If you’re running a POS mode, you can still copy the underlying invoice text from the payment screen.
+      </div>
+    </section>
+
+    <!-- BlueWallet -->
+    <section class="wallet-guide" id="bluewallet">
+      <h2>BlueWallet</h2>
+      <p>
+        <a href="https://bluewallet.io/" target="_blank" rel="noopener noreferrer">
+          BlueWallet
+        </a>
+        supports Bitcoin and Lightning wallets. To receive over Lightning, make sure you have created or connected a Lightning wallet.
+      </p>
+
+      <ol class="steps">
+        <li>Install BlueWallet and open the app.</li>
+        <li>Create a new wallet. For Lightning, choose a <strong>Lightning wallet</strong> type (or connect to a Lightning service if required).</li>
+        <li>Open your Lightning wallet inside BlueWallet.</li>
+        <li>Tap <strong>Receive</strong>.</li>
+        <li>
+          Enter the amount as <strong>100 sats</strong> (or the amount The Satoshi Faucet specifies).
+        </li>
+        <li>Generate the invoice. BlueWallet will show a QR code and the BOLT11 invoice text.</li>
+        <li>Tap to copy the invoice (the string starting with <code>lnbc...</code>).</li>
+        <li>Paste this invoice into the faucet’s “Lightning invoice” field.</li>
+      </ol>
+
+      <div class="example-box">
+        <strong>Note:</strong> BlueWallet’s Lightning features may depend on external services. Make sure your Lightning
+        wallet inside BlueWallet is active and funded if needed.
+      </div>
+    </section>
+
+    <footer>
+      This page is for educational purposes only. Wallet interfaces change over time, but the core idea stays the same:
+      <strong>create a Lightning invoice for the correct amount and paste the BOLT11 text into the faucet.</strong>
+    </footer>
+  </div>
+</body>
+</html>
