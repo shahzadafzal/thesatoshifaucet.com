@@ -143,200 +143,74 @@
     </div>
   </div>
 
-  <!-- Google reCAPTCHA API -->
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<script>
+  (function () {
+    const form      = document.getElementById("faucet-form");
+    const addressEl = document.getElementById("address-input");
+    const statusEl  = document.getElementById("status-message");
+    const getBtn    = document.getElementById("get-button");
 
-  <script>
-    // Simple front-end demo logic.
-    // IMPORTANT: In production, you must verify the reCAPTCHA token on your server.
-    (function () {
-      const form = document.getElementById("faucet-form");
-      const addressInput = document.getElementById("address-input");
-      const statusEl = document.getElementById("status-message");
-      const getBtn = document.getElementById("get-button");
-      const balanceEl = document.getElementById("available-balance");
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      statusEl.textContent = "";
+      statusEl.className = "status-message";
 
-      // Demo values
-      let available = 75000; // sats
-      const rewardPerClaim = 500; // sats
-
-      function updateBalance() {
-        balanceEl.textContent = "▲ " + available.toLocaleString() + " satoshis available";
+      const invoice = addressEl.value.trim();
+      if (!invoice) {
+        statusEl.textContent = "Please paste a Lightning invoice (BOLT11).";
+        statusEl.classList.add("status-error");
+        return;
       }
 
-      updateBalance();
-
-      form.addEventListener("submit", function (event) {
-        event.preventDefault();
-        statusEl.textContent = "";
-        statusEl.className = "status-message";
-
-        const address = addressInput.value.trim();
-
-        // Check Google reCAPTCHA client-side (real security must be server-side)
-        let captchaResponse = "";
-        try {
-          // grecaptcha is provided by the reCAPTCHA script
-          if (window.grecaptcha) {
-            captchaResponse = grecaptcha.getResponse();
-          }
-        } catch (e) {
-          // ignore; will be treated as empty
-        }
-
-        if (!captchaResponse) {
-          statusEl.textContent = "Please complete the reCAPTCHA before claiming.";
-          statusEl.classList.add("status-error");
-          return;
-        }
-
-        if (!address) {
-          statusEl.textContent = "Please paste a valid Bitcoin or Lightning receiving address.";
-          statusEl.classList.add("status-error");
-          return;
-        }
-
-        if (available < rewardPerClaim) {
-          statusEl.textContent = "The faucet is currently dry. Please check back later.";
-          statusEl.classList.add("status-error");
-          return;
-        }
-
-        // Simulate a claim
-        available -= rewardPerClaim;
-        updateBalance();
-
-        statusEl.textContent =
-          "Success! A demo payout of " +
-          rewardPerClaim.toLocaleString() +
-          " sats would be sent to " +
-          address +
-          " once the real backend is connected (after verifying reCAPTCHA server-side).";
-        statusEl.classList.add("status-success");
-
-        // Reset reCAPTCHA for another try
-        if (window.grecaptcha) {
-          grecaptcha.reset();
-        }
-
-        // Briefly disable button to mimic rate limiting
-        getBtn.disabled = true;
-        setTimeout(function () {
-          getBtn.disabled = false;
-        }, 4000);
-      });
-    })();
-  </script>
-  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-  <script>
-    (function () {
-      const form = document.getElementById("faucet-form");
-      const addressEl = document.getElementById("address-input");
-      const statusEl = document.getElementById("status-message");
-      const getBtn = document.getElementById("get-button");
-      const balanceEl = document.getElementById("available-balance");
-
-      // Optional: track a front-end balance number (just cosmetic)
-      let available = 75000;
-      function updateBalanceDisplay() {
-        if (!balanceEl) return;
-        balanceEl.textContent = "▲ " + available.toLocaleString() + " satoshis available";
+      let captchaResponse = "";
+      if (window.grecaptcha) {
+        captchaResponse = grecaptcha.getResponse();
       }
-      updateBalanceDisplay();
+      if (!captchaResponse) {
+        statusEl.textContent = "Please complete the reCAPTCHA before claiming.";
+        statusEl.classList.add("status-error");
+        return;
+      }
 
-      form.addEventListener("submit", function (e) {
-        e.preventDefault();
-        statusEl.textContent = "";
-        statusEl.className = "status-message";
+      getBtn.disabled = true;
 
-        const address = addressEl.value.trim();
-        if (!address) {
-          statusEl.textContent = "Please paste a valid Bitcoin or Lightning receiving address.";
-          statusEl.classList.add("status-error");
-          return;
-        }
+      const formData = new FormData();
+      formData.append("address", invoice);
+      formData.append("g-recaptcha-response", captchaResponse);
 
-        let captchaResponse = "";
-        if (window.grecaptcha) {
-          captchaResponse = grecaptcha.getResponse();
-        }
-        if (!captchaResponse) {
-          statusEl.textContent = "Please complete the reCAPTCHA before claiming.";
-          statusEl.classList.add("status-error");
-          return;
-        }
-
-        getBtn.disabled = true;
-
-        const formData = new FormData();
-        formData.append("address", address);
-        formData.append("g-recaptcha-response", captchaResponse);
-
-        fetch("claim.php", {
-          method: "POST",
-          body: formData
-        })
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.status === "success") {
-              statusEl.textContent = data.message + " Sent to: " + data.walletAddress;
-              statusEl.classList.add("status-success");
-
-              if (typeof data.satsSent === "number") {
-                available = Math.max(0, available - data.satsSent);
-                updateBalanceDisplay();
-              }
-            } else if (data.status === "already_claimed") {
-              const msg =
-                "You’ve already claimed from this faucet.\n" +
-                "Sats were sent to: " + (data.walletAddress || address);
-              statusEl.textContent = msg;
-              statusEl.classList.add("status-error");
-            } else {
-              statusEl.textContent = data.message || "Something went wrong. Please try again.";
-              statusEl.classList.add("status-error");
-            }
-          })
-          .catch((err) => {
-            console.error(err);
-            statusEl.textContent = "Network error. Please try again.";
-            statusEl.classList.add("status-error");
-          })
-          .finally(() => {
-            getBtn.disabled = false;
-            if (window.grecaptcha) {
-              grecaptcha.reset();
-            }
-          });
-      });
-    })();
-  </script>
-
-
-  <script>
-    (function () {
-      // on load, try to show current status by IP
-      fetch("status.php")
+      fetch("claim.php", {
+        method: "POST",
+        body: formData
+      })
         .then(r => r.json())
         .then(data => {
-          if (!data || !data.status || data.status === 'none') return;
-          const statusEl = document.getElementById("status-message");
-          if (!statusEl) return;
-          if (data.status === 'pending' || data.status === 'processing') {
-            statusEl.textContent = "You already have a request in progress. Please check back later.";
+          if (data.status === "queued") {
+            statusEl.textContent = data.message + " (Invoice: " + data.invoice + ")";
             statusEl.classList.add("status-success");
-          } else if (data.status === 'paid') {
-            statusEl.textContent = "You already claimed — sats were sent to your invoice.";
-            statusEl.classList.add("status-success");
-          } else if (data.status === 'failed') {
-            statusEl.textContent = "Your previous request failed. You can try again later.";
+          } else if (data.status === "already_claimed") {
+            statusEl.textContent = data.message + " (Invoice: " + data.invoice + ")";
+            statusEl.classList.add("status-error");
+          } else {
+            statusEl.textContent = data.message || "Something went wrong. Please try again.";
             statusEl.classList.add("status-error");
           }
         })
-        .catch(() => { /* ignore */ });
+        .catch(err => {
+          console.error(err);
+          statusEl.textContent = "Network error. Please try again.";
+          statusEl.classList.add("status-error");
+        })
+        .finally(() => {
+          getBtn.disabled = false;
+          if (window.grecaptcha) {
+            grecaptcha.reset();
+          }
+        });
+    });
+  })();
+</script>
 
-    })();
-  </script>
 </body>
 
 </html>
