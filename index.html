@@ -55,17 +55,15 @@
             <div class="captcha-wrap">
               <div class="captcha-note">
                 We offer free sats only to humans or aliens but not robots.<br>
-                Please prove you're not an AI robot by completing the reCAPTCHA below.
+                Please prove you're not an AI robot by completing the reCAPTCHA below.yyyyyyyy
               </div>
-              <div class="g-recaptcha" data-sitekey="6LdX7wksAAAAAMQ86AekQ3IAyvy5YTJ6xgdbTwzv"></div>
-
-
-
+              <!-- Google reCAPTCHA -->
+              <div class="g-recaptcha" data-sitekey="6LfFKSEsAAAAAKBqHR-UMEAQppJZ58vzoY4R_qb_"></div>
             </div>
 
             <div class="address-row">
               <label for="address-input">Your Satoshi Address:</label>
-              <input id="address-input" name="address" type="text" placeholder="bc1... or Lightning invoice" />
+              <input id="address-input" name="address" type="text" placeholder="Lightning invoice (starting with lnbc...)" />
               <button type="submit" class="btn-primary" id="get-button">Get Some!</button>
             </div>
             <p style="font-size:0.85rem;margin-top:6px;">
@@ -76,25 +74,7 @@
 
             <div class="status-message" id="status-message" aria-live="polite"></div>
           </form>
-          <!-- Google reCAPTCHA -->
-          <form id="faucet-form" action="claim.php" method="POST" autocomplete="off" style="display: none;">
-            <div class="captcha-wrap">
-              <div class="captcha-note">
-                Please prove you’re human by completing the reCAPTCHA below.
-              </div>
-              <!-- reCAPTCHA widget using your site key -->
-              <div class="g-recaptcha" data-sitekey="6LdX7wksAAAAAMQ86AekQ3IAyvy5YTJ6xgdbTwzv">
-              </div>
-            </div>
 
-            <div class="address-row">
-              <label for="address-input">Your Satoshi Address:</label>
-              <input id="address-input" name="address" type="text" placeholder="bc1... or Lightning invoice" />
-              <button type="submit" class="btn-primary" id="get-button">Get Some!</button>
-            </div>
-
-            <div class="status-message" id="status-message" aria-live="polite"></div>
-          </form>
         </div>
 
         <!-- Informational sections -->
@@ -144,72 +124,72 @@
   </div>
 
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-<script>
-  (function () {
-    const form      = document.getElementById("faucet-form");
-    const addressEl = document.getElementById("address-input");
-    const statusEl  = document.getElementById("status-message");
-    const getBtn    = document.getElementById("get-button");
+  <script>
+    (function () {
+      const form = document.getElementById("faucet-form");
+      const addressEl = document.getElementById("address-input");
+      const statusEl = document.getElementById("status-message");
+      const getBtn = document.getElementById("get-button");
 
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
-      statusEl.textContent = "";
-      statusEl.className = "status-message";
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        statusEl.textContent = "";
+        statusEl.className = "status-message";
 
-      const invoice = addressEl.value.trim();
-      if (!invoice) {
-        statusEl.textContent = "Please paste a Lightning invoice (BOLT11).";
-        statusEl.classList.add("status-error");
-        return;
-      }
-
-      let captchaResponse = "";
-      if (window.grecaptcha) {
-        captchaResponse = grecaptcha.getResponse();
-      }
-      if (!captchaResponse) {
-        statusEl.textContent = "Please complete the reCAPTCHA before claiming.";
-        statusEl.classList.add("status-error");
-        return;
-      }
-
-      getBtn.disabled = true;
-
-      const formData = new FormData();
-      formData.append("address", invoice);
-      formData.append("g-recaptcha-response", captchaResponse);
-
-      fetch("claim.php", {
-        method: "POST",
-        body: formData
-      })
-        .then(r => r.json())
-        .then(data => {
-          if (data.status === "queued") {
-            statusEl.textContent = data.message + " (Invoice: " + data.invoice + ")";
-            statusEl.classList.add("status-success");
-          } else if (data.status === "already_claimed") {
-            statusEl.textContent = data.message + " (Invoice: " + data.invoice + ")";
-            statusEl.classList.add("status-error");
-          } else {
-            statusEl.textContent = data.message || "Something went wrong. Please try again.";
-            statusEl.classList.add("status-error");
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          statusEl.textContent = "Network error. Please try again.";
+        const invoice = addressEl.value.trim();
+        if (!invoice) {
+          statusEl.textContent = "Please paste a Lightning invoice (BOLT11).";
           statusEl.classList.add("status-error");
+          return;
+        }
+
+        let captchaResponse = "";
+        if (window.grecaptcha) {
+          captchaResponse = grecaptcha.getResponse();
+        }
+        if (!captchaResponse) {
+          statusEl.textContent = "Please complete the reCAPTCHA before claiming.";
+          statusEl.classList.add("status-error");
+          return;
+        }
+
+        getBtn.disabled = true;
+
+        const formData = new FormData();
+        formData.append("address", invoice);
+        formData.append("g-recaptcha-response", captchaResponse);
+
+        fetch("claim.php", {
+          method: "POST",
+          body: formData
         })
-        .finally(() => {
-          getBtn.disabled = false;
-          if (window.grecaptcha) {
-            grecaptcha.reset();
-          }
-        });
-    });
-  })();
-</script>
+          .then(r => r.json())
+          .then(data => {
+            if (data.status === "queued") {
+              statusEl.textContent = data.message + " (Invoice: " + data.invoice + ")";
+              statusEl.classList.add("status-success");
+            } else if (data.status === "already_claimed") {
+              statusEl.textContent = data.message + " (Invoice: " + data.invoice + ")";
+              statusEl.classList.add("status-error");
+            } else {
+              statusEl.textContent = data.message || "Something went wrong. Please try again.";
+              statusEl.classList.add("status-error");
+            }
+          })
+          .catch(err => {
+            console.error(err);
+            statusEl.textContent = "Network error. Please try again.";
+            statusEl.classList.add("status-error");
+          })
+          .finally(() => {
+            getBtn.disabled = false;
+            if (window.grecaptcha) {
+              grecaptcha.reset();
+            }
+          });
+      });
+    })();
+  </script>
 
 </body>
 
