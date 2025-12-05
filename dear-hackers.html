@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<link rel="stylesheet" href="assets/style.css" />
+<link rel="stylesheet" href="assets/innerstyle.css" />
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Dear Hackers – The Satoshi Faucet</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="A friendly message to curious hackers visiting The Satoshi Faucet." />
+</head>
+<style>
+    :root {
+        --accent: #c9302c;
+        --accent-dark: #a72824;
+        --border-color: #ddd;
+        --bg-light: #fafafa;
+        --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: var(--font-main);
+        background: #ffffff;
+        color: #222;
+        line-height: 1.6;
+    }
+
+    .page {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 24px 16px 40px;
+    }
+
+    header {
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 12px;
+        margin-bottom: 20px;
+    }
+
+    .back-link {
+        font-size: 0.9rem;
+        margin-bottom: 8px;
+        display: inline-block;
+        text-decoration: none;
+        color: #1a0dab;
+    }
+
+    .back-link:hover {
+        text-decoration: underline;
+    }
+
+    h1 {
+        font-size: 1.9rem;
+        margin: 0 0 4px;
+    }
+
+    .subtitle {
+        font-size: 0.95rem;
+        color: #555;
+    }
+
+    .card {
+        border: 1px solid var(--border-color);
+        background: var(--bg-light);
+        border-radius: 4px;
+        padding: 16px 18px;
+        margin-bottom: 20px;
+    }
+
+    h2 {
+        margin-top: 0;
+        font-size: 1.3rem;
+    }
+
+    .emoji-header {
+        font-size: 1.6rem;
+        margin-right: 6px;
+    }
+
+    .fact-list {
+        margin: 10px 0 0;
+        padding-left: 20px;
+        font-size: 0.95rem;
+    }
+
+    .fact-list li {
+        margin-bottom: 6px;
+    }
+
+    .highlight {
+        background: #fff3f3;
+        border-left: 3px solid var(--accent);
+        padding: 10px 12px;
+        font-size: 0.9rem;
+        margin: 16px 0;
+    }
+
+    .tiny {
+        font-size: 0.8rem;
+        color: #666;
+    }
+
+    code {
+        font-family: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 0.85rem;
+        background: #f5f5f5;
+        padding: 2px 4px;
+        border-radius: 3px;
+    }
+
+    a {
+        color: #1a0dab;
+    }
+
+    a:hover {
+        text-decoration: underline;
+    }
+
+    footer {
+        margin-top: 28px;
+        font-size: 0.8rem;
+        color: #777;
+        border-top: 1px solid var(--border-color);
+        padding-top: 10px;
+    }
+
+    .headerInner{
+        padding-left: unset !important;
+        text-align: left !important;
+    }
+
+    @media (max-width: 600px) {
+        h1 {
+            font-size: 1.6rem;
+        }
+
+        .card {
+            padding: 14px 12px;
+        }
+    }
+</style>
+
+<body>
+    <div class="page">
+        <header>
+            <!-- Tap graphic (replace tap.png with your actual file) -->
+            <img src="tap.png" alt="Faucet" class="tap-image" />
+
+            <div class="logo-area">
+                <div class="faucet-icon" aria-hidden="true"></div>
+                <div>
+                    <h1>The Satoshi Faucet</h1>
+                    <div class="subtitle">A tribute to the original Bitcoin Faucet – now dripping satoshis.</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="layout">
+            <!-- Left column / sidebar -->
+            <aside class="sidebar">
+                <h2>Balance</h2>
+                <div class="sidebar-value" id="available-balance">▲ 75&nbsp;000 satoshis available</div>                
+
+                <h2>Other Sites</h2>
+                <ul>
+                    <li><a href="https://bitcointalk.org" target="_blank" rel="noopener noreferrer">bitcointalk.org</a>
+                    </li>
+                    <li><a href="https://bitcoin.org" target="_blank" rel="noopener noreferrer">bitcoin.org</a></li>
+                    <li><a href="https://en.bitcoin.it/wiki/Main_Page" target="_blank" rel="noopener noreferrer">Bitcoin
+                            Wiki</a>
+                    </li>
+                </ul>
+            </aside>
+
+            <!-- Main content -->
+            <main>
+                <div class="page">
+                    <header class="headerInner">
+                        <a href="index.html" class="back-link">&larr; Back to The Satoshi Faucet</a>
+                        <h1><span class="emoji-header">👋</span>Dear Hackers &amp; Curious Explorers</h1>
+                        <div class="subtitle">
+                            Welcome to the tiny corner of the internet where we give away a few sats and a friendly
+                            reminder.
+                        </div>
+                    </header> 
+                    <div class="card">
+                        <h2>Short version: please don’t waste your 1337 skills here 😅</h2>
+                        <p>
+                            We know a site called <strong>thesatoshifaucet.com</strong> with the word “faucet” in it is
+                            basically a magnet
+                            for curiosity, scripts, scanners, and general hacker vibes.
+                        </p>
+                        <p>
+                            So here are some important facts, stated clearly and honestly:
+                        </p>
+                        <ul class="fact-list">
+                            <li><strong>No hot wallet is stored on this server.</strong></li>
+                            <li><strong>No private keys live anywhere near this website.</strong></li>
+                            <li><strong>No direct satoshi-sending logic runs on this web server.</strong></li>
+                            <li>All sending logic is handled <strong>offline / separately</strong>, independent of this
+                                site.</li>
+                            <li>The database here just tracks <em>requests</em> and simple metadata (like invoice &amp;
+                                IP), not funds.</li>
+                        </ul>
+                        <div class="highlight">
+                            In other words: even if you totally “pwned” this server,
+                            <strong>there’s nothing to drain.</strong>
+                            No faucet funds. No secret stash. No magic “send all sats” button.
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2>But what if you still want to poke around? 🕵️‍♂️</h2>
+                        <p>
+                            If you’re just a curious developer or security nerd:
+                        </p>
+                        <ul class="fact-list">
+                            <li>This project is for fun, education, and nostalgia, not for storing serious money.</li>
+                            <li>We try to keep the code clean and simple, but it’s still just a humble hobby faucet.
+                            </li>
+                            <li>If you <em>do</em> spot a genuine security bug, we’d much rather hear from you than
+                                fight you.</li>
+                        </ul>
+                        <p class="tiny">
+                            (Responsibly reporting issues is way more badass than trying to rob a faucet with no money
+                            in it.)
+                        </p>
+                    </div>
+
+                    <div class="card">
+                        <h2>No wallet here, no jackpot there 🎰</h2>
+                        <p>
+                            Just to repeat the key point in case someone skimmed:
+                        </p>
+                        <ul class="fact-list">
+                            <li>The website at <code>https://thesatoshifaucet.com/</code> does <strong>not</strong> hold
+                                a Lightning node.</li>
+                            <li>It does <strong>not</strong> hold a Bitcoin wallet.</li>
+                            <li>It does <strong>not</strong> have the satoshi-sending logic on this box.</li>
+                        </ul>
+                        <p>
+                            So please don’t burn your time, VPN exit nodes, and creativity trying to “hack the faucet”.
+                            There is
+                            literally nothing here that can give you extra sats beyond what the faucet would send you
+                            anyway.
+                        </p>
+                    </div>
+
+                    <div class="card">
+                        <h2>Use your powers for good ⚡</h2>
+                        <p>
+                            If you’re into Bitcoin, Lightning, and security, you already know there’s a lot of important
+                            work to do:
+                        </p>
+                        <ul class="fact-list">
+                            <li>Contribute to open source Bitcoin / Lightning projects.</li>
+                            <li>Help wallets get safer and more user-friendly.</li>
+                            <li>Audit real infrastructure that actually secures real money (with permission 😉).</li>
+                        </ul>
+                        <p>
+                            This little faucet is just here to keep the spirit of the original Bitcoin Faucet alive and
+                            to give newcomers
+                            a tiny bit of sats. That’s all.
+                        </p>
+                    </div>
+
+                    <footer>
+                        If you still made it this far: thanks for reading, white hat or black hat or just bored.
+                        <br />
+                        May your exploits be ethical, your nodes be well-backed-up, and your sats never be stored on
+                        random websites.
+                    </footer>
+                </div>
+        </div>
+        </main>
+    </div>
+    </div>
+
+</body>
+
+</html>

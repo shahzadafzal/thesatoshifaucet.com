@@ -77,7 +77,7 @@ try {
     $check = $pdo->prepare("
         SELECT invoice, ip_address, status, sats_sent, created_at
         FROM faucet_claims
-        WHERE invoice = :inv OR ip_address = :ip
+        WHERE invoice = :inv OR (ip_address = :ip AND 1=2)
         LIMIT 1
     ");
     $check->execute([':inv' => $invoice, ':ip' => $userIp]);
