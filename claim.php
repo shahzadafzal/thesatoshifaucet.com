@@ -125,7 +125,7 @@ try {
     echo json_encode([
         'status'  => 'error',
         'message' => 'Server error while recording your request.',
-        // 'debug' => $e->getMessage(), // enable if you need to see errors locally
+         'debug' => $e->getMessage(), // enable if you need to see errors locally
     ]);
     exit;
 }

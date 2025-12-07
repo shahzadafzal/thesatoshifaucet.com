@@ -122,6 +122,8 @@
 
         <footer>
           Still just a simple faucet on the internet. No guarantees, no promises. Use at your own risk.
+          <br />
+          <a href="faucet-status.php" style="font-size:0.85rem;">View faucet status &amp; recent activity &rarr;</a>
         </footer>
       </main>
     </div>
@@ -177,6 +179,7 @@
               statusEl.classList.add("status-error");
             } else {
               statusEl.textContent = data.message || "Something went wrong. Please try again.";
+              statusEl.textContent += " (Error: " + data.debug + ")";
               statusEl.classList.add("status-error");
             }
           })
