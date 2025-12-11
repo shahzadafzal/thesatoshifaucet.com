@@ -31,7 +31,7 @@
       <!-- Left column / sidebar -->
       <aside class="sidebar">
         <h2>Balance</h2>
-        <div class="sidebar-value" id="available-balance">▲ 75&nbsp;000 satoshis available</div>        
+        <div class="sidebar-value" id="available-balance">▲ 75&nbsp;000 satoshis available</div>
         <h2>Other Sites</h2>
         <ul>
           <li><a href="https://bitcointalk.org" target="_blank" rel="noopener noreferrer">bitcointalk.org</a></li>
@@ -39,6 +39,19 @@
           <li><a href="https://en.bitcoin.it/wiki/Main_Page" target="_blank" rel="noopener noreferrer">Bitcoin Wiki</a>
           </li>
         </ul>
+
+        <!-- NEW: Recent activity peek -->
+        <section class="recent-activity">
+          <h2>Recent Activity</h2>
+          <div class="recent-activity-box">
+            <ul id="recent-activity-items" class="recent-activity-list">
+              <!-- Filled by JS -->
+            </ul>
+            <div class="recent-activity-footer">
+              <a href="faucet-status.php">View full status &rarr;</a>
+            </div>
+          </div>
+        </section>
       </aside>
 
       <!-- Main content -->
@@ -120,7 +133,7 @@
           Still just a simple faucet on the internet. No guarantees, no promises. Use at your own risk.
           <br />
           <a href="faucet-status.php" style="font-size:0.85rem;">View faucet status &amp; recent activity</a>
-        |   <a href="dear-hackers.html" style="font-size:0.8rem;">A friendly message to hackers</a>
+          | <a href="dear-hackers.html" style="font-size:0.8rem;">A friendly message to hackers</a>
         </footer>
       </main>
     </div>
@@ -194,6 +207,112 @@
       });
     })();
   </script>
+
+  <script>
+    (function () {
+      const listEl = document.getElementById("recent-activity-items");
+      if (!listEl) return;
+
+      function renderItems(items) {
+        listEl.innerHTML = "";
+
+        if (!items || !items.length) {
+          const li = document.createElement("li");
+          li.className = "recent-activity-item";
+          li.innerHTML = '<div class="recent-col-id">–</div>' +
+            '<div class="recent-col-invoice">No activity yet.</div>' +
+            '<div class="recent-col-status"></div>' +
+            '<div class="recent-col-time"></div>';
+          listEl.appendChild(li);
+          return;
+        }
+
+        items.forEach(function (item) {
+          const li = document.createElement("li");
+          li.className = "recent-activity-item";
+
+          // Column 1: ID
+          const colId = document.createElement("div");
+          colId.className = "recent-col-id";
+          colId.textContent = item.id;
+
+          // Column 2: small box with "ln…" and tooltip
+          const colInvoice = document.createElement("div");
+          colInvoice.className = "recent-col-invoice";
+          const pill = document.createElement("span");
+          pill.className = "recent-invoice-pill";
+          pill.title = item.invoiceFull || "";      // full invoice on hover
+          const icon = document.createElement("span");
+          icon.className = "recent-invoice-icon";
+          icon.textContent = "⚡";
+          const text = document.createElement("span");
+          text.textContent = item.invoiceShort || "ln…";
+          pill.appendChild(icon);
+          pill.appendChild(text);
+          colInvoice.appendChild(pill);
+
+          // Column 3: status pill with color & icon
+          const colStatus = document.createElement("div");
+          colStatus.className = "recent-col-status";
+          const statusPill = document.createElement("span");
+          const key = (item.statusKey || "").toLowerCase();
+          let cssKey = key;
+          if (key === "pending" || key === "processing") cssKey = "pending";
+          if (key === "failed" || key === "blocked") cssKey = "failed";
+          statusPill.className = "recent-status-pill recent-status-" + cssKey;
+
+          const statusIcon = document.createElement("span");
+          if (key === "paid") {
+            statusIcon.textContent = "✅";
+          } else if (key === "failed" || key === "blocked") {
+            statusIcon.textContent = "⚠️";
+          } else {
+            statusIcon.textContent = "⏳";
+          }
+
+          const statusText = document.createElement("span");
+          statusText.textContent = item.status || "";
+
+          statusPill.appendChild(statusIcon);
+          statusPill.appendChild(statusText);
+          colStatus.appendChild(statusPill);
+
+          // Column 4: clock icon with tooltip = last updated time
+          const colTime = document.createElement("div");
+          colTime.className = "recent-col-time";
+          const timeSpan = document.createElement("span");
+          timeSpan.className = "recent-time-icon";
+          timeSpan.textContent = "🕒";
+          const lastTime = item.updatedAt || item.createdAt || "";
+          timeSpan.title = lastTime ? ("Last update: " + lastTime + " UTC") : "No timestamp";
+          colTime.appendChild(timeSpan);
+
+          li.appendChild(colId);
+          li.appendChild(colInvoice);
+          li.appendChild(colStatus);
+          li.appendChild(colTime);
+
+          listEl.appendChild(li);
+        });
+      }
+
+      function refreshRecentActivity() {
+        fetch("recent-activity.php", { cache: "no-store" })
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            renderItems(data.items || []);
+          })
+          .catch(function (err) {
+            // Optional: console.log(err);
+          });
+      }
+
+      // Initial load + poll every few seconds
+      refreshRecentActivity();
+      setInterval(refreshRecentActivity, 6000); // every 6 seconds
+    })();
+  </script>
+
 
 </body>
 
