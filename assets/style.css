@@ -259,20 +259,42 @@ footer {
 
 .recent-activity-box {
   border: 1px solid var(--border-color);
-  background: linear-gradient(135deg, #fff7f7, #f7fbff);
+  background: linear-gradient(135deg, #fffdf7, #f7fbff);
   border-radius: 6px;
   padding: 6px 6px 4px;
-  max-height: 240px;
-  /* small window */
+  max-height: 660px;
   overflow-y: auto;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+      overflow-x: hidden;
 }
 
-.recent-activity h2 {
-  font-size: 0.95rem;
-  margin-bottom: 6px;
+/* Header row */
+.recent-activity-header {
+  display: grid;
+  grid-template-columns: 36px 1fr 70px 32px; /* ID | invoice | status | clock */
+  gap: 4px;
+  padding: 2px 4px 4px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #777;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
 }
 
+.recent-head-id {
+  text-align: center;
+}
+.recent-head-invoice {
+  text-align: left;
+}
+.recent-head-status {
+  text-align: center;
+}
+.recent-head-time {
+  text-align: center;
+}
+
+/* Rows: ONE transaction = ONE row */
 .recent-activity-list {
   list-style: none;
   margin: 0;
@@ -281,19 +303,22 @@ footer {
 
 .recent-activity-item {
   display: grid;
-  grid-template-columns: 40px 1fr auto auto;
-  /* id, invoice, status, time */
+  grid-template-columns: 36px 1fr 70px 32px;
   align-items: center;
   gap: 4px;
-  padding: 4px 4px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  padding: 3px 4px;
+  border-bottom: 1px solid rgba(0,0,0,0.03);
+}
+
+.recent-activity-item:nth-child(odd) {
+  background: rgba(255,255,255,0.6);
 }
 
 .recent-activity-item:last-child {
   border-bottom: none;
 }
 
-/* Column: ID */
+/* Col 1: ID */
 .recent-col-id {
   font-size: 0.78rem;
   font-weight: 600;
@@ -301,7 +326,7 @@ footer {
   text-align: center;
 }
 
-/* Column: invoice pill */
+/* Col 2: Invoice pill */
 .recent-col-invoice {
   display: flex;
   align-items: center;
@@ -314,9 +339,9 @@ footer {
   gap: 4px;
   padding: 2px 6px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(0,0,0,0.04);
   font-size: 0.76rem;
-  max-width: 130px;
+  max-width: 140px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -327,7 +352,7 @@ footer {
   font-size: 0.78rem;
 }
 
-/* Column: status pill */
+/* Col 3: Status pill */
 .recent-col-status {
   text-align: center;
 }
@@ -335,23 +360,16 @@ footer {
 .recent-status-pill {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 2px;
   padding: 2px 6px;
   border-radius: 999px;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 600;
-}
-
-/* base */
-.recent-status-pending,
-.recent-status-processing,
-.recent-status-paid,
-.recent-status-failed,
-.recent-status-blocked {
   border: 1px solid transparent;
 }
 
-/* Queued / pending / processing */
+/* base colors */
 .recent-status-pending,
 .recent-status-processing {
   background: #fff7e0;
@@ -359,14 +377,12 @@ footer {
   color: #8a5a00;
 }
 
-/* Paid */
 .recent-status-paid {
   background: #e6f7e6;
   border-color: #9fd39f;
   color: #0a7f00;
 }
 
-/* Failed / blocked */
 .recent-status-failed,
 .recent-status-blocked {
   background: #ffe6e6;
@@ -374,7 +390,7 @@ footer {
   color: #a30000;
 }
 
-/* Column: time icon */
+/* Col 4: clock icon */
 .recent-col-time {
   text-align: center;
 }
@@ -382,12 +398,12 @@ footer {
 .recent-time-icon {
   font-size: 0.9rem;
   cursor: default;
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 /* Footer link */
 .recent-activity-footer {
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  border-top: 1px solid rgba(0,0,0,0.06);
   margin-top: 4px;
   padding-top: 4px;
   text-align: right;
