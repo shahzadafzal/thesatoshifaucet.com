@@ -300,7 +300,7 @@ function status_label(string $status): string {
         A public peek at what the faucet is doing: queued, processing, paid, and failed requests.
       </div>
       <div class="meta">
-        Last updated (DB): <strong><?php echo htmlspecialchars($lastUpdated, ENT_QUOTES, 'UTF-8'); ?> UTC</strong>
+        Last updated: <strong><?php echo htmlspecialchars($lastUpdated, ENT_QUOTES, 'UTF-8'); ?> UTC</strong>
       </div>
     </header>
 

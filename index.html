@@ -276,6 +276,18 @@
 
           statusPill.className = "recent-status-pill recent-status-" + cssKey;
 
+          // 🟡 Tooltip text: show sats sent if >0, otherwise sats requested
+          const satsRequested = typeof item.satsRequested === "number" ? item.satsRequested : 0;
+          const satsSent = typeof item.satsSent === "number" ? item.satsSent : 0;
+
+          if (satsSent > 0 && key === "paid") {
+            statusPill.title = satsSent + " sats sent";
+          } else if (satsRequested > 0) {
+            statusPill.title = satsRequested + " sats requested";
+          } else {
+            statusPill.title = "No sats info";
+          }
+
           const statusIcon = document.createElement("span");
           if (key === "paid") statusIcon.textContent = "✅";
           else if (key === "failed" || key === "blocked") statusIcon.textContent = "⚠️";
@@ -288,12 +300,15 @@
           statusPill.appendChild(statusText);
           colStatus.appendChild(statusPill);
 
+
           // Col 4: clock icon with tooltip = last updated
           const colTime = document.createElement("div");
           colTime.className = "recent-col-time";
           const timeSpan = document.createElement("span");
           timeSpan.className = "recent-time-icon";
           timeSpan.textContent = "🕒";
+
+          colStatus.title = "Stats Sent: " + (item.satsSent || 0);
 
           const lastTime = item.updatedAt || item.createdAt || "";
           timeSpan.title = lastTime
@@ -323,10 +338,9 @@
 
       // Initial load + poll
       window.refreshRecentActivity();
-      setInterval(window.refreshRecentActivity, 6000); // every 6 seconds
+      //setInterval(window.refreshRecentActivity, 6000); // every 6 seconds
     })();
   </script>
-
 </body>
 
 </html>
