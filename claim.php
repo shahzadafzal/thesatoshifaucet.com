@@ -22,21 +22,79 @@ function get_pdo(): PDO {
     return $pdo;
 }
 
+function classify_lightning_target(string $value): ?array {
+    $value = trim($value);
+    $lower = strtolower($value);
+
+    // LNURL: lnurl1...
+    if (strpos($lower, 'lnurl1') === 0) {
+        // length sanity
+        $len = strlen($lower);
+        if ($len < 30 || $len > 2048) {
+            return null;
+        }
+        // basic bech32-ish check
+        if (!preg_match('/^lnurl1[02-9ac-hj-np-z]+$/', $lower)) {
+            return null;
+        }
+        return ['type' => 'lnurl', 'normalized' => $value];
+    }
+
+    // BOLT11 (mainnet only here): lnbc1...
+    if (strpos($lower, 'lnbc1') === 0) {
+        $len = strlen($lower);
+        if ($len < 50 || $len > 2048) {
+            return null;
+        }
+        if (!preg_match('/^lnbc1[02-9ac-hj-np-z]+$/', $lower)) {
+            return null;
+        }
+        return ['type' => 'bolt11', 'normalized' => $value];
+    }
+
+    // You could also allow testnet etc with: ^ln(tb|bcrt)1...
+    return null;
+}
+
 // --- read POST data from JS ---
 $invoice      = isset($_POST['address']) ? trim($_POST['address']) : '';  // BOLT11 invoice
 $captchaToken = $_POST['g-recaptcha-response'] ?? '';
 $userIp       = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 $userAgent    = $_SERVER['HTTP_USER_AGENT'] ?? '';
 
-if ($invoice === '') {
-    echo json_encode(['status'=>'error','message'=>'Please paste a Lightning invoice (BOLT11).']); exit;
-}
 
-// quick sanity check (not strict)
-if (stripos($invoice, 'lnbc') !== 0 && stripos($invoice, 'ln') !== 0) {
+$invoice = isset($_POST['address']) ? trim($_POST['address']) : '';
+
+$invoice = trim($invoice);
+$invLower = strtolower($invoice);
+
+if (strpos($invLower, 'lnurl1') !== 0) {
     echo json_encode([
         'status'  => 'error',
-        'message' => 'For now the faucet only accepts Lightning invoices (starting with lnbc...).'
+        'message' => 'This faucet accepts LNURL only (starts with lnurl1...). '
+                   . 'Please copy your LNURL from your wallet and paste it here.'
+    ]);
+    exit;
+}
+
+
+
+// Length sanity (LNURLs vary but should not be super short)
+$len = strlen($invLower);
+if ($len < 30 || $len > 2048) {
+    echo json_encode([
+        'status'  => 'error',
+        'message' => 'That LNURL looks too short/long. Please copy it again from your wallet.'
+    ]);
+    exit;
+}
+
+
+// Bech32 charset check (simple)
+if (!preg_match('/^lnurl1[02-9ac-hj-np-z]+$/', $invLower)) {
+    echo json_encode([
+        'status'  => 'error',
+        'message' => 'Invalid LNURL format. Please paste a valid LNURL (lnurl1...) from your wallet.'
     ]);
     exit;
 }
@@ -101,10 +159,12 @@ try {
 
     // new request -> insert as pending
     $reward = 100; // sats (or 1000 if you want)
+
     $ins = $pdo->prepare("
-        INSERT INTO faucet_claims (invoice, ip_address, sats_requested, status, user_agent)
-        VALUES (:inv, :ip, :sats, 'pending', :ua)
+        INSERT INTO faucet_claims (invoice, ip_address, sats_requested, status, user_agent, payment_type)
+        VALUES (:inv, :ip, :sats, 'pending', :ua, 'lnurl')
     ");
+
     $ins->execute([
         ':inv'  => $invoice,
         ':ip'   => $userIp,
@@ -114,7 +174,7 @@ try {
 
     echo json_encode([
         'status'  => 'queued',
-        'message' => 'Your request has been queued. Your sats are on the way. 🎉',
+        'message' => 'LNURL received ✅ Your request has been queued. Your sats are on the way. 🎉',
         'invoice' => $invoice,
         'ip'      => $userIp,
         'sats'    => $reward,
