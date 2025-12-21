@@ -224,7 +224,7 @@ if ($filterLast24) {
 }
 
 $sql = "
-    SELECT id, invoice, ip_address, sats_requested, sats_sent, status, tx_reference, created_at, updated_at, reason
+    SELECT id, invoice, ip_address, sats_requested, sats_sent, status, tx_reference, created_at, updated_at, reason, receiver_domain
     FROM faucet_claims
 ";
 

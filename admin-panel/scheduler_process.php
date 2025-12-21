@@ -246,6 +246,24 @@ function lnurl_request_invoice(array $payData, int $amountMsat): string {
     return $pr;
 }
 
+
+/** ---------------------------
+ * 
+ * --------------------------- */
+
+function lnurl_extract_domain(string $lnurl): string {
+    $url = lnurl_to_url($lnurl);          // already validates checksum + decodes
+    $parts = parse_url($url);
+    $host = $parts['host'] ?? '';
+    $host = strtolower(trim($host));
+    // basic cleanup: remove trailing dot
+    $host = rtrim($host, '.');
+    if ($host === '') {
+        throw new RuntimeException("LNURL decoded but domain missing");
+    }
+    return $host;
+}
+
 /** ---------------------------
  * PAY step (example: LNbits)
  * You can swap this out later.
@@ -300,6 +318,7 @@ function pay_bolt11_invoice(string $bolt11): array {
 
     return ['paid' => true, 'ref' => $ref, 'error' => null];
 }
+
 
 /** ---------------------------
  * Main processing loop
@@ -382,11 +401,17 @@ for ($i = 0; $i < $BATCH; $i++) {
 
         // Set to processing
         $pdo->prepare("UPDATE faucet_claims SET status='processing', reason=NULL WHERE id=:id")
-            ->execute([':id' => $id]);
+            ->execute([':id' => $id]);       
 
         $pdo->commit();
 
         $lnurl = trim((string)$row['invoice']);
+
+         // Store decoded domain for sanity
+        $domain = lnurl_extract_domain($lnurl);
+
+        $pdo->prepare("UPDATE faucet_claims SET receiver_domain=:d WHERE id=:id")
+            ->execute([':d' => $domain, ':id' => $id]);
 
         // --- Step B: LNURL validate + invoice request ---
         $payData = lnurl_fetch_pay_data($lnurl);
