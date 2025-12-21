@@ -131,6 +131,9 @@ if (!$data || empty($data['success'])) {
 try {
     $pdo = get_pdo();
 
+    // new request -> insert as pending
+    $reward = 100; // sats (or 1000 if you want)
+    
     // check if this invoice OR IP already has a record
     $check = $pdo->prepare("
         SELECT invoice, ip_address, status, sats_sent, created_at
@@ -157,8 +160,27 @@ try {
         exit;
     }
 
-    // new request -> insert as pending
-    $reward = 100; // sats (or 1000 if you want)
+
+     // ✅ Atomic: reserve/deduct sats when queuing
+    $pdo->beginTransaction();
+
+    // Lock balance row so concurrent claims can't overspend
+    $balStmt = $pdo->query("SELECT balance_sats FROM faucet_balance WHERE id=1 FOR UPDATE");
+    $balRow = $balStmt->fetch();
+    $currentBalance = $balRow ? (int)$balRow['balance_sats'] : 0;
+
+    if ($currentBalance < $reward) {
+        $pdo->rollBack();
+        echo json_encode([
+            'status'  => 'error',
+            'message' => 'Faucet is empty right now. Please try again later.',
+            'balance' => $currentBalance
+        ]);
+        exit;
+    }
+
+
+    
 
     $ins = $pdo->prepare("
         INSERT INTO faucet_claims (invoice, ip_address, sats_requested, status, user_agent, payment_type)
@@ -172,6 +194,16 @@ try {
         ':ua'   => $userAgent,
     ]);
 
+    // Deduct balance
+    $upd = $pdo->prepare("
+        UPDATE faucet_balance
+        SET balance_sats = balance_sats - :amt
+        WHERE id = 1
+    ");
+    $upd->execute([':amt' => $reward]);
+
+    $pdo->commit();
+
     echo json_encode([
         'status'  => 'queued',
         'message' => 'LNURL received ✅ Your request has been queued. Your sats are on the way. 🎉',
@@ -182,6 +214,10 @@ try {
     exit;
 
 } catch (Throwable $e) {
+    if ($pdo && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+
     echo json_encode([
         'status'  => 'error',
         'message' => 'Server error while recording your request.',

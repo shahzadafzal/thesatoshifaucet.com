@@ -40,3 +40,27 @@
     // Deselect text
     window.getSelection().removeAllRanges();
   }
+
+
+  // Refresh available balance display
+
+  function formatSats(n) {
+    try { return Number(n).toLocaleString(); } catch { return String(n); }
+  }
+
+  function refreshBalance() {
+    fetch("balance.php", { cache: "no-store" })
+      .then(r => r.json())
+      .then(data => {
+        const el = document.getElementById("available-balance");
+        if (!el) return;
+
+        if (data && data.ok) {
+          el.textContent = "▲ " + formatSats(data.balance) + " satoshis available";
+        }
+      })
+      .catch(() => {});
+  }
+
+  // on page load
+  refreshBalance();
