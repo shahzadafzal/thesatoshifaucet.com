@@ -224,7 +224,7 @@ if ($filterLast24) {
 }
 
 $sql = "
-    SELECT id, invoice, ip_address, sats_requested, sats_sent, status, tx_reference, created_at, updated_at
+    SELECT id, invoice, ip_address, sats_requested, sats_sent, status, tx_reference, created_at, updated_at, reason
     FROM faucet_claims
 ";
 
@@ -444,6 +444,49 @@ $claims = $claimsStmt->fetchAll();
         font-size: 0.8rem;
       }
     }
+
+    /* Row highlighting by status (admin table) */
+    tr.pending td {
+      background: #fff7e0 !important;   /* warm yellow */
+    }
+
+    tr.processing td {
+      background: #e6f3ff !important;   /* light blue */
+    }
+
+    tr.paid td {
+      background: #e6f7e6 !important;   /* light green */
+    }
+
+    tr.failed td {
+      background: #ffe6e6 !important;   /* light red */
+    }
+
+    tr.blocked td {
+      background: #f2f2f2 !important;   /* light gray */
+    }
+
+    /* Optional: stronger left border indicator */
+    tr.pending td:first-child {
+      border-left: 6px solid #f0cf80;
+    }
+    tr.processing td:first-child {
+      border-left: 6px solid #7ab7ff;
+    }
+    tr.paid td:first-child {
+      border-left: 6px solid #6cc26c;
+    }
+    tr.failed td:first-child {
+      border-left: 6px solid #f0a3a3;
+    }
+    tr.blocked td:first-child {
+      border-left: 6px solid #bbb;
+    }
+
+    /* Optional: make hover still visible */
+    tbody tr:hover td {
+      filter: brightness(0.98);
+    }
   </style>
 </head>
 <body>
@@ -503,7 +546,7 @@ $claims = $claimsStmt->fetchAll();
           <tr><td colspan="8">No transactions found for this filter.</td></tr>
         <?php else: ?>
           <?php foreach ($claims as $c): ?>
-            <tr>
+            <tr class="<?php echo $c['status']; ?>">
               <td><?php echo (int)$c['id']; ?></td>
               <td class="invoice-full">
                 <div style="display:flex; flex-direction:column; gap:4px;">
@@ -547,7 +590,7 @@ $claims = $claimsStmt->fetchAll();
                          name="tx_reference"
                          class="tx-input"
                          value="<?php echo htmlspecialchars($c['tx_reference'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" />
-
+                  <span class="reason"><strong>Reason:</strong> <?php echo $c['reason']?></span>
                   <button type="submit" name="update_status" value="1" class="update-btn">Update</button>
                 </form>
               </td>
