@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>How to Get Your LNURL – The Satoshi Faucet</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+  :root {
+    --accent: #f7931a;
+    --bg: #f9f9f9;
+    --card: #ffffff;
+    --border: #e0e0e0;
+    --text: #222;
+    --muted: #666;
+    --ok: #0a7f00;
+    --warn: #a30000;
+  }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 24px 16px 60px;
+  }
+
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 6px;
+  }
+
+  h2 {
+    margin-top: 36px;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 6px;
+  }
+
+  h3 {
+    margin-top: 24px;
+  }
+
+  p {
+    margin: 10px 0;
+  }
+
+  .intro {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+  }
+
+  .note {
+    background: #fff7e0;
+    border: 1px solid #f0cf80;
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin: 16px 0;
+  }
+
+  .ok {
+    background: #e6f7e6;
+    border: 1px solid #9fd39f;
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin: 16px 0;
+  }
+
+  .warn {
+    background: #ffe6e6;
+    border: 1px solid #f0a3a3;
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin: 16px 0;
+  }
+
+  .wallet {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px;
+    margin-top: 20px;
+  }
+
+  ul, ol {
+    padding-left: 20px;
+  }
+
+  .code {
+    font-family: monospace;
+    background: #f4f4f4;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .footer {
+    margin-top: 48px;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h1>How to Get Your LNURL</h1>
+<p><strong>The Satoshi Faucet</strong> sends free sats using <strong>LNURL (Lightning)</strong>.</p>
+
+<div class="intro">
+  <p>
+    This guide is for <strong>beginners</strong>.  
+    Follow the steps below to get your <strong>LNURL</strong> from popular Lightning wallets.
+  </p>
+
+  <div class="ok">
+    ✅ We accept <strong>LNURL only</strong><br>
+    ❌ We do NOT accept Lightning invoices (<span class="code">lnbc1...</span>)
+  </div>
+</div>
+
+---
+
+<h2>What is LNURL?</h2>
+
+<p>
+LNURL is a reusable Lightning payment link.  
+It works like a Bitcoin address, but for Lightning.
+</p>
+
+<ul>
+  <li>Starts with <span class="code">lnurl1...</span></li>
+  <li>You can reuse it many times</li>
+  <li>The faucet decides the amount (e.g. 100 sats)</li>
+</ul>
+
+<div class="note">
+ℹ️ LNURL is the safest option for faucets because users cannot request more sats than allowed.
+</div>
+
+---
+
+<h2>What NOT to paste</h2>
+
+<div class="warn">
+❌ Do NOT paste Lightning invoices like:<br>
+<span class="code">lnbc1u1p...</span><br><br>
+These are single-use and often request the wrong amount.
+</div>
+
+---
+
+<h2>How to Get LNURL from Popular Wallets</h2>
+
+---
+
+<div class="wallet">
+<h3>Wallet of Satoshi (Recommended)</h3>
+
+<ol>
+  <li>Open <strong>Wallet of Satoshi</strong></li>
+  <li>Tap <strong>Receive</strong></li>
+  <li>Look for <strong>LNURL</strong> or <strong>Lightning address</strong></li>
+  <li>Copy the text starting with <span class="code">lnurl1...</span></li>
+</ol>
+
+<div class="ok">
+✅ Wallet of Satoshi provides a reusable LNURL by default
+</div>
+</div>
+
+---
+
+<div class="wallet">
+<h3>Phoenix Wallet</h3>
+
+<ol>
+  <li>Open <strong>Phoenix</strong></li>
+  <li>Tap <strong>Receive</strong></li>
+  <li>Select <strong>LNURL</strong> (not invoice)</li>
+  <li>Copy the <span class="code">lnurl1...</span></li>
+</ol>
+</div>
+
+---
+
+<div class="wallet">
+<h3>Alby Wallet</h3>
+
+<ol>
+  <li>Open <strong>Alby</strong> (web or extension)</li>
+  <li>Go to <strong>Receive</strong></li>
+  <li>Copy your LNURL or Lightning address</li>
+</ol>
+
+<div class="note">
+Some Alby wallets also show a Lightning address like <span class="code">name@getalby.com</span>.  
+This works too — your wallet converts it to LNURL automatically.
+</div>
+</div>
+
+---
+
+<div class="wallet">
+<h3>BlueWallet</h3>
+
+<ol>
+  <li>Open <strong>BlueWallet</strong></li>
+  <li>Select your <strong>Lightning wallet</strong></li>
+  <li>Tap <strong>Receive</strong></li>
+  <li>Choose <strong>LNURL</strong> (if shown)</li>
+</ol>
+
+<div class="warn">
+If BlueWallet only shows an invoice (<span class="code">lnbc1...</span>),  
+you must enable LNURL in settings or use another wallet.
+</div>
+</div>
+
+---
+
+<h2>Final Checklist</h2>
+
+<ul>
+  <li>✅ Starts with <span class="code">lnurl1...</span></li>
+  <li>✅ Copied directly from your wallet</li>
+  <li>❌ Not a Lightning invoice</li>
+</ul>
+
+<div class="ok">
+🎉 That’s it! Paste your LNURL into the faucet and enjoy your sats.
+</div>
+
+---
+
+<div class="footer">
+  The Satoshi Faucet • Lightning-only • Education-first • No private keys stored
+</div>
+
+</div>
+</body>
+</html>

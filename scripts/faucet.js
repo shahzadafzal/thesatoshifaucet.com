@@ -1,8 +1,8 @@
 
-  function copyInvoiceToClipboard(btn) {
+  function copyInvoiceToClipboard(btn, c) {
     // textarea is the previous sibling in the same container
     var container = btn.parentNode;
-    var textarea = container.querySelector('.invoice-copy');
+    var textarea = container.querySelector('.'+c);
     if (!textarea) return;
 
     var text = textarea.value;
@@ -20,6 +20,7 @@
       fallbackCopy(textarea, btn);
     }
   }
+
 
   function fallbackCopy(textarea, btn) {
     textarea.focus();
@@ -62,5 +63,4 @@
       .catch(() => {});
   }
 
-  // on page load
-  refreshBalance();
+  

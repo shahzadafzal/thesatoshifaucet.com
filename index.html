@@ -12,7 +12,7 @@
 
 </head>
 
-<body>
+<body onload="refreshBalance();">
   <div class="page">
     <header>
       <!-- Tap graphic (replace tap.png with your actual file) -->
@@ -82,15 +82,16 @@
             </div>
 
             <div class="address-row">
-              <label for="address-input">Your Satoshi Address:</label>
-              <input id="address-input" name="address" type="text"
-                placeholder="Lightning invoice (starting with lnbc...)" />
+              <label for="address-input">Your LNURL (Lightning Address):</label>
+              <input id="address-input" name="address" type="text" placeholder="LNURL (starting with lnurl1...)" />
               <button type="submit" class="btn-primary" id="get-button">Get Some!</button>
             </div>
+
             <p style="font-size:0.85rem;margin-top:6px;">
-              Need help? <a href="how-to-create-lightning-invoice-steps.html" target="_blank" rel="noopener">How to
-                create a
-                Lightning invoice</a>
+              Need help?
+              <a href="how-to-get-lnurl.html" rel="noopener">
+                How to get your LNURL
+              </a>
             </p>
 
             <div class="status-message" id="status-message" aria-live="polite"></div>
@@ -340,6 +341,9 @@
       window.refreshRecentActivity();
       //setInterval(window.refreshRecentActivity, 6000); // every 6 seconds
     })();
+
+    // on page load
+
   </script>
   <script src="scripts/faucet.js" async defer></script>
 </body>
