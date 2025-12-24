@@ -114,10 +114,20 @@ function status_label(string $status): string {
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Faucet Status – The Satoshi Faucet</title>
+  <title>Satoshi Faucet Status – Recent Free Bitcoin (sats) Transactions</title>
+
+<meta name="description" 
+  content="Live status of The Satoshi Faucet showing recent free bitcoin and satoshi payouts via Lightning LNURL.">
+
+<meta name="keywords" content="
+bitcoin faucet status,
+free bitcoin transactions,
+free satoshi payouts,
+lightning faucet status
+">
+
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description"
-        content="Live status page for The Satoshi Faucet – queued requests, payouts, and recent activity." />
+  
   <style>
     :root {
       --accent: #c9302c;
