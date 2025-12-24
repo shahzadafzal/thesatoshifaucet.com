@@ -224,7 +224,8 @@ if ($filterLast24) {
 }
 
 $sql = "
-    SELECT id, invoice, ip_address, sats_requested, sats_sent, status, tx_reference, created_at, updated_at, reason, receiver_domain
+    SELECT id, invoice, ip_address, sats_requested, sats_sent, status, tx_reference, created_at, 
+    updated_at, reason, receiver_domain, admin_status, pay_bolt11
     FROM faucet_claims
 ";
 
@@ -539,6 +540,7 @@ $claims = $claimsStmt->fetchAll();
             <th>TX ref</th>
             <th>Created</th>
             <th>Updated</th>
+            <th>Admin Status</th>
           </tr>
         </thead>
         <tbody>
@@ -553,10 +555,22 @@ $claims = $claimsStmt->fetchAll();
                     <textarea class="invoice-copy" readonly><?php echo htmlspecialchars($c['invoice'], ENT_QUOTES, 'UTF-8'); ?></textarea>
                     <button type="button"
                             class="copy-btn"
-                            onclick="copyInvoiceToClipboard(this)">
+                            onclick="copyInvoiceToClipboard(this,'invoice-copy')">
                     Copy invoice
                     </button>
                 </div>
+
+                <?php if (!empty($c['pay_bolt11'])): ?>
+                  <div style="display:flex; flex-direction:column; gap:6px;">
+                    <textarea class="lnbc-copy" readonly><?php echo htmlspecialchars($c['pay_bolt11'], ENT_QUOTES, 'UTF-8'); ?></textarea>
+                    <button type="button" class="copy-btn" onclick="copyInvoiceToClipboard(this,'lnbc-copy')">Copy pay invoice</button>
+                    <div class="tiny">
+                      Paste into your wallet to pay <?php echo (int)$c['sats_requested']; ?> sats.
+                    </div>
+                  </div>
+                <?php else: ?>
+                  <span class="tiny">—</span>
+                <?php endif; ?>
               </td>
               <td><?php echo htmlspecialchars($c['ip_address'], ENT_QUOTES, 'UTF-8'); ?></td>
               <td>
@@ -597,6 +611,7 @@ $claims = $claimsStmt->fetchAll();
               <td><?php echo htmlspecialchars($c['tx_reference'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
               <td><?php echo htmlspecialchars($c['created_at'], ENT_QUOTES, 'UTF-8'); ?></td>
               <td><?php echo htmlspecialchars($c['updated_at'], ENT_QUOTES, 'UTF-8'); ?></td>
+              <td><?php echo htmlspecialchars($c['admin_status'] ?? '—', ENT_QUOTES, 'UTF-8'); ?></td>
             </tr>
           <?php endforeach; ?>
         <?php endif; ?>

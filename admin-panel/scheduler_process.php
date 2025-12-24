@@ -237,7 +237,7 @@ function lnurl_request_invoice(array $payData, int $amountMsat): string {
 
     if (($invoiceResp['status'] ?? 'OK') === 'ERROR') {
         throw new RuntimeException("LNURL callback error: " . ($invoiceResp['reason'] ?? 'unknown'));
-    }
+    } 
 
     $pr = $invoiceResp['pr'] ?? '';
     if (!is_string($pr) || stripos($pr, 'ln') !== 0) {
@@ -332,7 +332,7 @@ $REFUND_ON_FAIL = true;
 // Process up to N rows per run
 $BATCH = 5;
 
-function mark_failed(PDO $pdo, int $id, string $reason, bool $refundOnFail): void {
+function mark_failed(PDO $pdo, int $id, string $reason, bool $refundOnFail, string $adminStatus = 'failed_validation'): void {
     // Load sats_requested for refund amount (lock row to be safe)
     $pdo->beginTransaction();
 
@@ -354,16 +354,20 @@ function mark_failed(PDO $pdo, int $id, string $reason, bool $refundOnFail): voi
         return;
     }
 
-    // Mark failed with reason
-    $upd = $pdo->prepare("
+    $pdo->prepare("
         UPDATE faucet_claims
         SET status='failed',
+            admin_status=:ast,
+            pay_bolt11=NULL,
             sats_sent=0,
             tx_reference=NULL,
             reason=:reason
         WHERE id=:id
-    ");
-    $upd->execute([':reason' => $reason, ':id' => $id]);
+    ")->execute([
+        ':ast'    => $adminStatus,
+        ':reason' => $reason,
+        ':id'     => $id
+    ]);
 
     // Optional refund back to faucet balance
     if ($refundOnFail && $amount > 0) {
@@ -414,10 +418,27 @@ for ($i = 0; $i < $BATCH; $i++) {
             ->execute([':d' => $domain, ':id' => $id]);
 
         // --- Step B: LNURL validate + invoice request ---
+        echo "Row #{$id} PROCESSING: LNURL={$lnurl}, domain={$domain}\n";
         $payData = lnurl_fetch_pay_data($lnurl);
         $bolt11  = lnurl_request_invoice($payData, $REWARD_MSAT);
 
+        // ✅ Store the pay invoice for manual payment
+        $pdo->prepare("
+                UPDATE faucet_claims
+                SET pay_bolt11 = :bolt11,
+                    admin_status = 'ready_to_pay',
+                    reason = NULL
+                WHERE id = :id
+            ")->execute([
+                ':bolt11' => $bolt11,
+                ':id'     => $id,
+            ]);
+
+        echo "Row #{$id} READY TO PAY: stored BOLT11 invoice for {$REWARD_SATS} sats\n";
+
         // --- Step C: Pay bolt11 invoice ---
+        /* 
+         ********** Manual at moment - uncomment to auto-pay **********
         $pay = pay_bolt11_invoice($bolt11);
 
         if (!$pay['paid']) {
@@ -442,6 +463,7 @@ for ($i = 0; $i < $BATCH; $i++) {
         ]);
 
         echo "Row #{$id} PAID: {$REWARD_SATS} sats, ref=" . $pay['ref'] . "\n";
+        */
 
     } catch (Throwable $e) {
         // If any exception occurs after we set processing:
