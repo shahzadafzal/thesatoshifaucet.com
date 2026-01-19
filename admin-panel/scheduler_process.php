@@ -16,8 +16,9 @@
  */
 
 if (php_sapi_name() !== 'cli') {
+    header('Content-Type: text/plain');
     http_response_code(403);
-    echo "CLI only.\n";
+    echo "Forbidden: CLI access only.\n";
     exit(1);
 }
 
@@ -331,6 +332,15 @@ $REFUND_ON_FAIL = true;
 
 // Process up to N rows per run
 $BATCH = 5;
+
+// Allow CLI override: php scheduler_process.php --batch=1
+if (!empty($argv)) {
+  foreach ($argv as $arg) {
+    if (strpos($arg, '--batch=') === 0) {
+      $BATCH = max(1, (int)substr($arg, 8));
+    }
+  }
+}
 
 function mark_failed(PDO $pdo, int $id, string $reason, bool $refundOnFail, string $adminStatus = 'failed_validation'): void {
     // Load sats_requested for refund amount (lock row to be safe)

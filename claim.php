@@ -211,6 +211,32 @@ try {
         'ip'      => $userIp,
         'sats'    => $reward,
     ]);
+
+    // Flush output so the browser doesn't wait
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+    } else {
+        @ob_end_flush();
+        @flush();
+    }
+
+    
+    // Fire-and-forget scheduler: process only 1 item (fast)
+    if (!empty($SCHEDULER_TRIGGER_ENABLED) && !empty($SCHEDULER_FILE)) {
+        $php  = $PHP_CLI_PATH ?? 'php';
+        $file = $SCHEDULER_FILE;
+
+        $cmd = escapeshellcmd($php) . ' ' . escapeshellarg($file) . ' --batch=1';
+
+        // Windows vs Linux background execution
+        if (stripos(PHP_OS, 'WIN') === 0) {
+            // Windows: run in background
+            @pclose(@popen('start /B "" ' . $cmd, 'r'));
+        } else {
+            // Linux/cPanel: run in background
+            @exec($cmd . ' > /dev/null 2>&1 &');
+        }
+    }
     exit;
 
 } catch (Throwable $e) {
