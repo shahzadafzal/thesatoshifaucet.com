@@ -488,6 +488,64 @@ $claims = $claimsStmt->fetchAll();
     tbody tr:hover td {
       filter: brightness(0.98);
     }
+    /* ---- Run Scheduler panel ---- */
+    .scheduler-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .run-scheduler-btn {
+      padding: 7px 16px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      border-radius: 5px;
+      border: none;
+      background: #1a7f37;
+      color: #fff;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s;
+    }
+    .run-scheduler-btn:hover:not(:disabled) { background: #155d28; }
+    .run-scheduler-btn:disabled { background: #888; cursor: not-allowed; }
+
+    .batch-select {
+      font-size: 0.85rem;
+      padding: 4px 7px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+
+    .scheduler-output-wrap {
+      display: none;
+      margin-bottom: 12px;
+    }
+    .scheduler-output-wrap.visible { display: block; }
+
+    .scheduler-output {
+      background: #0d1117;
+      color: #c9d1d9;
+      font-family: "SFMono-Regular", Menlo, Monaco, Consolas, "Courier New", monospace;
+      font-size: 0.8rem;
+      line-height: 1.55;
+      border-radius: 6px;
+      padding: 12px 14px;
+      max-height: 320px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      border: 1px solid #30363d;
+    }
+    .scheduler-status {
+      font-size: 0.8rem;
+      color: #555;
+      margin-top: 4px;
+    }
   </style>
 </head>
 <body>
@@ -505,6 +563,28 @@ $claims = $claimsStmt->fetchAll();
     <?php if ($updateMessage): ?>
       <div class="message"><?php echo htmlspecialchars($updateMessage, ENT_QUOTES, 'UTF-8'); ?></div>
     <?php endif; ?>
+
+    <!-- ===== Run Scheduler Panel ===== -->
+    <div class="scheduler-bar">
+      <button id="run-scheduler-btn" class="run-scheduler-btn" onclick="runScheduler()">
+        ▶ Run Scheduler
+      </button>
+      <label style="font-size:0.85rem;">
+        Batch size:
+        <select id="scheduler-batch" class="batch-select">
+          <option value="1">1 claim</option>
+          <option value="5" selected>5 claims</option>
+          <option value="10">10 claims</option>
+          <option value="25">25 claims</option>
+          <option value="50">50 claims</option>
+        </select>
+      </label>
+      <span id="scheduler-status" class="scheduler-status"></span>
+    </div>
+
+    <div id="scheduler-output-wrap" class="scheduler-output-wrap">
+      <pre id="scheduler-output" class="scheduler-output">Running…</pre>
+    </div>
 
     <div class="panel">
 
@@ -623,5 +703,41 @@ $claims = $claimsStmt->fetchAll();
     </div>
   </div>
   <script src="../scripts/faucet.js" async defer></script>
+  <script>
+    function runScheduler() {
+      const btn    = document.getElementById('run-scheduler-btn');
+      const output = document.getElementById('scheduler-output');
+      const wrap   = document.getElementById('scheduler-output-wrap');
+      const status = document.getElementById('scheduler-status');
+      const batch  = document.getElementById('scheduler-batch').value;
+
+      btn.disabled    = true;
+      btn.textContent = '⏳ Running…';
+      output.textContent = 'Starting scheduler…';
+      wrap.classList.add('visible');
+      status.textContent = '';
+
+      const fd = new FormData();
+      fd.append('batch', batch);
+
+      fetch('run_scheduler.php', { method: 'POST', body: fd })
+        .then(r => r.text())
+        .then(text => {
+          output.textContent = text;
+          output.scrollTop   = output.scrollHeight;
+          status.textContent = 'Finished at ' + new Date().toLocaleTimeString();
+          // Refresh the page so transaction table shows updated statuses
+          setTimeout(() => location.reload(), 1500);
+        })
+        .catch(err => {
+          output.textContent = 'Network error: ' + err;
+          status.textContent = 'Failed.';
+        })
+        .finally(() => {
+          btn.disabled    = false;
+          btn.textContent = '▶ Run Scheduler';
+        });
+    }
+  </script>
 </body>
 </html>

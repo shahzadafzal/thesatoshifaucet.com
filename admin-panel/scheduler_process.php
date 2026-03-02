@@ -22,6 +22,11 @@ if (php_sapi_name() !== 'cli') {
     exit(1);
 }
 
+// -- Log header: each scheduler run writes a separator so you can track it in scheduler.log --
+echo "\n" . str_repeat('-', 60) . "\n";
+echo "[SCHEDULER] Started at " . date('Y-m-d H:i:s') . " UTC\n";
+echo str_repeat('-', 60) . "\n";
+
 $configFile = __DIR__ . '/../config.local.php';
 if (!file_exists($configFile)) {
     echo "ERROR: config.local.php missing\n";

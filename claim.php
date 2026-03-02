@@ -1,5 +1,8 @@
 <?php
 // claim.php
+// Buffer everything so we can send Content-Length and close the connection
+// before the background scheduler starts — giving users an instant response.
+ob_start();
 header('Content-Type: application/json');
 
 // Load local config
@@ -103,7 +106,8 @@ if ($captchaToken === '') {
     echo json_encode(['status'=>'error','message'=>'Please complete the reCAPTCHA.']); exit;
 }
 
-// --- verify reCAPTCHA (using test secret key for local) ---
+// --- verify reCAPTCHA via cURL (faster, 5s timeout) ---
+// This runs synchronously BEFORE queuing — bots are rejected instantly.
 $verifyUrl = 'https://www.google.com/recaptcha/api/siteverify';
 $payload   = http_build_query([
     'secret'   => $RECAPTCHA_SECRET_KEY,
@@ -111,20 +115,21 @@ $payload   = http_build_query([
     'remoteip' => $userIp,
 ]);
 
-$context = stream_context_create([
-    'http' => [
-        'method'  => 'POST',
-        'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
-        'content' => $payload,
-        'timeout' => 10,
-    ],
+$ch = curl_init($verifyUrl);
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST           => true,
+    CURLOPT_POSTFIELDS     => $payload,
+    CURLOPT_TIMEOUT        => 5,   // fail fast — don't keep user waiting
+    CURLOPT_SSL_VERIFYPEER => true,
+    CURLOPT_USERAGENT      => 'TheSatoshiFaucet/1.0',
 ]);
-
-$response = file_get_contents($verifyUrl, false, $context);
-$data     = $response ? json_decode($response, true) : null;
+$response = curl_exec($ch);
+curl_close($ch);
+$data = $response ? json_decode($response, true) : null;
 
 if (!$data || empty($data['success'])) {
-    echo json_encode(['status'=>'error','message'=>'reCAPTCHA verification failed.']); exit;
+    echo json_encode(['status'=>'error','message'=>'reCAPTCHA verification failed. Please try again.']); exit;
 }
 
 // --- DB logic ---
@@ -204,37 +209,60 @@ try {
 
     $pdo->commit();
 
-    echo json_encode([
+    // --- Build the "queued" response and send it to the browser immediately ---
+    // We use Content-Length + Connection: close so the browser receives the full
+    // response and closes the connection BEFORE we fire the background scheduler.
+    // This gives users an instant "Your request has been queued" with zero wait
+    // for LNURL network processing (which happens asynchronously after this).
+    $jsonResponse = json_encode([
         'status'  => 'queued',
-        'message' => 'LNURL received ✅ Your request has been queued. Your sats are on the way. 🎉',
+        'message' => '⚡ Your request has been queued! Sats are on their way — sit tight. 🎉',
         'invoice' => $invoice,
         'ip'      => $userIp,
         'sats'    => $reward,
     ]);
 
-    // Flush output so the browser doesn't wait
+    // Capture everything buffered so far, then close the connection
+    $buffered = ob_get_clean();
+    $fullBody = $buffered . $jsonResponse;
+
+    // Tell the browser the exact content length so it knows the response is complete
+    header('Content-Length: ' . strlen($fullBody));
+    header('Connection: close');  // signal the server to close after this response
+
+    echo $fullBody;
+
+    // Flush to the web server / client
     if (function_exists('fastcgi_finish_request')) {
-        fastcgi_finish_request();
+        fastcgi_finish_request();   // FastCGI: releases browser immediately
     } else {
-        @ob_end_flush();
+        // Apache/mod_php fallback: sending Content-Length above is what actually
+        // lets the browser disconnect; flush moves bytes into the kernel buffer.
         @flush();
     }
 
-    
-    // Fire-and-forget scheduler: process only 1 item (fast)
+    // ----------------------------------------------------------------
+    // Phase 2: Fire-and-forget — the browser is already done waiting.
+    // The scheduler decodes the LNURL, fetches the pay-data, requests
+    // the BOLT11 invoice and (optionally) pays it asynchronously.
+    // ----------------------------------------------------------------
     if (!empty($SCHEDULER_TRIGGER_ENABLED) && !empty($SCHEDULER_FILE)) {
-        $php  = $PHP_CLI_PATH ?? 'php';
-        $file = $SCHEDULER_FILE;
+        // Use escapeshellarg for BOTH paths — escapeshellcmd can mangle Windows backslashes.
+        $php  = escapeshellarg($PHP_CLI_PATH ?? 'php');
+        $file = escapeshellarg($SCHEDULER_FILE);
+        $logFile = escapeshellarg(__DIR__ . '/scheduler.log');
 
-        $cmd = escapeshellcmd($php) . ' ' . escapeshellarg($file) . ' --batch=1';
-
-        // Windows vs Linux background execution
         if (stripos(PHP_OS, 'WIN') === 0) {
-            // Windows: run in background
-            @pclose(@popen('start /B "" ' . $cmd, 'r'));
+            // Windows: correct syntax is  start "title" /B  (title BEFORE /B)
+            // cmd /c is required because 'start' is a cmd.exe shell builtin.
+            // Output is redirected to scheduler.log so you can verify it ran.
+            $cmd = 'cmd /c start "" /B ' . $php . ' ' . $file . ' --batch=1'
+                 . ' >> ' . $logFile . ' 2>&1';
+            @pclose(@popen($cmd, 'r'));
         } else {
-            // Linux/cPanel: run in background
-            @exec($cmd . ' > /dev/null 2>&1 &');
+            // Linux / cPanel
+            $cmd = $php . ' ' . $file . ' --batch=1 >> ' . $logFile . ' 2>&1 &';
+            @exec($cmd);
         }
     }
     exit;
