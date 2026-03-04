@@ -1,250 +1,341 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<title>How to Get Your LNURL – The Satoshi Faucet</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <title>How to Get Your LNURL – The Satoshi Faucet</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description"
+    content="Step-by-step guide to getting your LNURL from popular Lightning wallets for use with The Satoshi Faucet." />
+  <style>
+    :root {
+      --accent: #f7931a;
+      --bg: #f4f4f4;
+      --card: #ffffff;
+      --border: #ddd;
+      --text: #222;
+      --muted: #666;
+      --ok: #0a7f00;
+      --warn: #a30000;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
 
-<style>
-  :root {
-    --accent: #f7931a;
-    --bg: #f9f9f9;
-    --card: #ffffff;
-    --border: #e0e0e0;
-    --text: #222;
-    --muted: #666;
-    --ok: #0a7f00;
-    --warn: #a30000;
-  }
+    * {
+      box-sizing: border-box;
+    }
 
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.6;
-  }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
 
-  .container {
-    max-width: 960px;
-    margin: 0 auto;
-    padding: 24px 16px 60px;
-  }
+    .page {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 16px 14px 60px;
+    }
 
-  h1 {
-    font-size: 2rem;
-    margin-bottom: 6px;
-  }
+    /* ── Shared site header ── */
+    .site-header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0d1b2a 100%);
+      border-radius: 8px;
+      padding: 18px 22px;
+      margin-bottom: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
 
-  h2 {
-    margin-top: 36px;
-    border-bottom: 2px solid var(--border);
-    padding-bottom: 6px;
-  }
+    .site-header-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      text-decoration: none;
+    }
 
-  h3 {
-    margin-top: 24px;
-  }
+    .site-header-brand img {
+      width: 54px;
+      height: auto;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+    }
 
-  p {
-    margin: 10px 0;
-  }
+    .site-header-brand h1 {
+      font-size: 1.3rem;
+      margin: 0 0 2px;
+      color: #fff;
+      font-weight: 700;
+    }
 
-  .intro {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 20px;
-  }
+    .site-header-brand .sub {
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.6);
+      margin: 0;
+    }
 
-  .note {
-    background: #fff7e0;
-    border: 1px solid #f0cf80;
-    border-radius: 6px;
-    padding: 12px 14px;
-    margin: 16px 0;
-  }
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.84rem;
+      color: rgba(255, 255, 255, 0.8);
+      text-decoration: none;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      padding: 5px 12px;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
 
-  .ok {
-    background: #e6f7e6;
-    border: 1px solid #9fd39f;
-    border-radius: 6px;
-    padding: 12px 14px;
-    margin: 16px 0;
-  }
+    .back-link:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
 
-  .warn {
-    background: #ffe6e6;
-    border: 1px solid #f0a3a3;
-    border-radius: 6px;
-    padding: 12px 14px;
-    margin: 16px 0;
-  }
+    /* ── Content ── */
+    .page-hero {
+      margin-bottom: 24px;
+    }
 
-  .wallet {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 18px;
-    margin-top: 20px;
-  }
+    .page-hero h2 {
+      font-size: 1.7rem;
+      margin: 0 0 4px;
+    }
 
-  ul, ol {
-    padding-left: 20px;
-  }
+    .page-hero p {
+      font-size: 0.95rem;
+      color: var(--muted);
+      margin: 4px 0 0;
+    }
 
-  .code {
-    font-family: monospace;
-    background: #f4f4f4;
-    padding: 2px 6px;
-    border-radius: 4px;
-  }
+    h3 {
+      font-size: 1.1rem;
+      margin-top: 0;
+      margin-bottom: 10px;
+    }
 
-  .footer {
-    margin-top: 48px;
-    text-align: center;
-    font-size: 0.85rem;
-    color: var(--muted);
-  }
-</style>
+    .intro {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    }
+
+    .note {
+      background: #fff7e0;
+      border: 1px solid #f0cf80;
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin: 14px 0;
+    }
+
+    .ok {
+      background: #e6f7e6;
+      border: 1px solid #9fd39f;
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin: 14px 0;
+    }
+
+    .warn {
+      background: #ffe6e6;
+      border: 1px solid #f0a3a3;
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin: 14px 0;
+    }
+
+    .wallet {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px 20px;
+      margin-bottom: 18px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    }
+
+    ul,
+    ol {
+      padding-left: 20px;
+      margin: 10px 0;
+    }
+
+    li {
+      margin-bottom: 5px;
+    }
+
+    .code {
+      font-family: "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+      background: #f4f4f4;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 24px 0;
+    }
+
+    .footer-note {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 0.84rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+    }
+
+    a {
+      color: #1a0dab;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 600px) {
+      .site-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
 </head>
 
 <body>
-<div class="container">
+  <div class="page">
 
-<h1>How to Get Your LNURL</h1>
-<p><strong>The Satoshi Faucet</strong> sends free sats using <strong>LNURL (Lightning)</strong>.</p>
+    <!-- ===== HEADER ===== -->
+    <header class="site-header">
+      <a href="index.html" class="site-header-brand">
+        <img src="tap.png" alt="The Satoshi Faucet" />
+        <div>
+          <h1>The Satoshi Faucet</h1>
+          <div class="sub">A tribute to the original Bitcoin Faucet</div>
+        </div>
+      </a>
+      <a href="index.html" class="back-link">&larr; Back to Home</a>
+    </header>
 
-<div class="intro">
-  <p>
-    This guide is for <strong>beginners</strong>.  
-    Follow the steps below to get your <strong>LNURL</strong> from popular Lightning wallets.
-  </p>
+    <!-- Page hero -->
+    <div class="page-hero">
+      <h2>⚡ How to Get Your LNURL</h2>
+      <p>Step-by-step guide for getting a reusable Lightning LNURL from popular wallets.</p>
+    </div>
 
-  <div class="ok">
-    ✅ We accept <strong>LNURL only</strong><br>
-    ❌ We do NOT accept Lightning invoices (<span class="code">lnbc1...</span>)
+    <div class="intro">
+      <p>
+        <strong>The Satoshi Faucet</strong> sends free sats using <strong>LNURL (Lightning)</strong>.
+        This guide is for <strong>beginners</strong> — follow the steps below.
+      </p>
+      <div class="ok">
+        ✅ We accept <strong>LNURL only</strong> — starts with <span class="code">lnurl1...</span><br>
+        ❌ We do <strong>NOT</strong> accept Lightning invoices (<span class="code">lnbc1...</span>)
+      </div>
+    </div>
+
+    <hr>
+
+    <div class="wallet">
+      <h3>What is LNURL?</h3>
+      <p>LNURL is a <strong>reusable</strong> Lightning payment link — like a Bitcoin address, but for Lightning.</p>
+      <ul>
+        <li>Starts with <span class="code">lnurl1...</span></li>
+        <li>You can reuse it many times</li>
+        <li>The faucet decides the amount (e.g. 100 sats)</li>
+      </ul>
+      <div class="note">
+        ℹ️ LNURL is the safest option for faucets because users cannot request more sats than allowed.
+      </div>
+    </div>
+
+    <div class="wallet">
+      <h3>❌ What NOT to paste</h3>
+      <div class="warn">
+        Do NOT paste Lightning invoices like:<br>
+        <span class="code">lnbc1u1p...</span><br><br>
+        These are single-use and often request the wrong amount.
+      </div>
+    </div>
+
+    <hr>
+    <h3 style="font-size:1.2rem; margin-bottom:14px;">📱 How to Get LNURL from Popular Wallets</h3>
+
+    <div class="wallet">
+      <h3>🟢 Wallet of Satoshi <em style="font-size:0.8rem;color:#0a7f00;">(Recommended)</em></h3>
+      <ol>
+        <li>Open <strong>Wallet of Satoshi</strong></li>
+        <li>Tap <strong>Receive</strong></li>
+        <li>Look for <strong>LNURL</strong> or <strong>Lightning address</strong></li>
+        <li>Copy the text starting with <span class="code">lnurl1...</span></li>
+      </ol>
+      <div class="ok">✅ Wallet of Satoshi provides a reusable LNURL by default</div>
+    </div>
+
+    <div class="wallet">
+      <h3>Phoenix Wallet</h3>
+      <ol>
+        <li>Open <strong>Phoenix</strong></li>
+        <li>Tap <strong>Receive</strong></li>
+        <li>Select <strong>LNURL</strong> (not invoice)</li>
+        <li>Copy the <span class="code">lnurl1...</span></li>
+      </ol>
+    </div>
+
+    <div class="wallet">
+      <h3>Alby Wallet</h3>
+      <ol>
+        <li>Open <strong>Alby</strong> (web or extension)</li>
+        <li>Go to <strong>Receive</strong></li>
+        <li>Copy your LNURL or Lightning address</li>
+      </ol>
+      <div class="note">
+        Some Alby wallets also show a Lightning address like <span class="code">name@getalby.com</span>.
+        This works too — your wallet converts it to LNURL automatically.
+      </div>
+    </div>
+
+    <div class="wallet">
+      <h3>BlueWallet</h3>
+      <ol>
+        <li>Open <strong>BlueWallet</strong></li>
+        <li>Select your <strong>Lightning wallet</strong></li>
+        <li>Tap <strong>Receive</strong></li>
+        <li>Choose <strong>LNURL</strong> (if shown)</li>
+      </ol>
+      <div class="warn">
+        If BlueWallet only shows an invoice (<span class="code">lnbc1...</span>),
+        you must enable LNURL in settings or use another wallet.
+      </div>
+    </div>
+
+    <hr>
+
+    <div class="wallet">
+      <h3>✅ Final Checklist</h3>
+      <ul>
+        <li>✅ Starts with <span class="code">lnurl1...</span></li>
+        <li>✅ Copied directly from your wallet</li>
+        <li>❌ Not a Lightning invoice</li>
+      </ul>
+      <div class="ok">
+        🎉 That's it! Paste (or scan) your LNURL into the faucet and enjoy your sats.
+      </div>
+    </div>
+
+    <div class="footer-note">
+      The Satoshi Faucet &bull; Lightning-only &bull; Education-first &bull; No private keys stored
+    </div>
+
   </div>
-</div>
-
----
-
-<h2>What is LNURL?</h2>
-
-<p>
-LNURL is a reusable Lightning payment link.  
-It works like a Bitcoin address, but for Lightning.
-</p>
-
-<ul>
-  <li>Starts with <span class="code">lnurl1...</span></li>
-  <li>You can reuse it many times</li>
-  <li>The faucet decides the amount (e.g. 100 sats)</li>
-</ul>
-
-<div class="note">
-ℹ️ LNURL is the safest option for faucets because users cannot request more sats than allowed.
-</div>
-
----
-
-<h2>What NOT to paste</h2>
-
-<div class="warn">
-❌ Do NOT paste Lightning invoices like:<br>
-<span class="code">lnbc1u1p...</span><br><br>
-These are single-use and often request the wrong amount.
-</div>
-
----
-
-<h2>How to Get LNURL from Popular Wallets</h2>
-
----
-
-<div class="wallet">
-<h3>Wallet of Satoshi (Recommended)</h3>
-
-<ol>
-  <li>Open <strong>Wallet of Satoshi</strong></li>
-  <li>Tap <strong>Receive</strong></li>
-  <li>Look for <strong>LNURL</strong> or <strong>Lightning address</strong></li>
-  <li>Copy the text starting with <span class="code">lnurl1...</span></li>
-</ol>
-
-<div class="ok">
-✅ Wallet of Satoshi provides a reusable LNURL by default
-</div>
-</div>
-
----
-
-<div class="wallet">
-<h3>Phoenix Wallet</h3>
-
-<ol>
-  <li>Open <strong>Phoenix</strong></li>
-  <li>Tap <strong>Receive</strong></li>
-  <li>Select <strong>LNURL</strong> (not invoice)</li>
-  <li>Copy the <span class="code">lnurl1...</span></li>
-</ol>
-</div>
-
----
-
-<div class="wallet">
-<h3>Alby Wallet</h3>
-
-<ol>
-  <li>Open <strong>Alby</strong> (web or extension)</li>
-  <li>Go to <strong>Receive</strong></li>
-  <li>Copy your LNURL or Lightning address</li>
-</ol>
-
-<div class="note">
-Some Alby wallets also show a Lightning address like <span class="code">name@getalby.com</span>.  
-This works too — your wallet converts it to LNURL automatically.
-</div>
-</div>
-
----
-
-<div class="wallet">
-<h3>BlueWallet</h3>
-
-<ol>
-  <li>Open <strong>BlueWallet</strong></li>
-  <li>Select your <strong>Lightning wallet</strong></li>
-  <li>Tap <strong>Receive</strong></li>
-  <li>Choose <strong>LNURL</strong> (if shown)</li>
-</ol>
-
-<div class="warn">
-If BlueWallet only shows an invoice (<span class="code">lnbc1...</span>),  
-you must enable LNURL in settings or use another wallet.
-</div>
-</div>
-
----
-
-<h2>Final Checklist</h2>
-
-<ul>
-  <li>✅ Starts with <span class="code">lnurl1...</span></li>
-  <li>✅ Copied directly from your wallet</li>
-  <li>❌ Not a Lightning invoice</li>
-</ul>
-
-<div class="ok">
-🎉 That’s it! Paste your LNURL into the faucet and enjoy your sats.
-</div>
-
----
-
-<div class="footer">
-  The Satoshi Faucet • Lightning-only • Education-first • No private keys stored
-</div>
-
-</div>
 </body>
+
 </html>

@@ -156,22 +156,65 @@ lightning faucet status
       padding: 24px 16px 40px;
     }
 
-    header {
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 10px;
+    /* ── Shared site header ─────────────────────────────── */
+    .site-header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0d1b2a 100%);
+      border-radius: 8px;
+      padding: 18px 22px;
+      margin-bottom: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .site-header-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      text-decoration: none;
+    }
+    .site-header-brand img {
+      width: 54px;
+      height: auto;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+    }
+    .site-header-brand h1 {
+      font-size: 1.3rem;
+      margin: 0 0 2px;
+      color: #fff;
+      font-weight: 700;
+    }
+    .site-header-brand .subtitle {
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.6);
+      margin: 0;
+    }
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.84rem;
+      color: rgba(255,255,255,0.8);
+      text-decoration: none;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 20px;
+      padding: 5px 12px;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .back-link:hover {
+      background: rgba(255,255,255,0.2);
+      text-decoration: none;
+    }
+    /* ── Page hero (title below header) ─────────────────── */
+    .page-hero {
       margin-bottom: 20px;
     }
-
-    .back-link {
-      font-size: 0.9rem;
-      margin-bottom: 8px;
-      display: inline-block;
-      text-decoration: none;
-      color: #1a0dab;
-    }
-
-    .back-link:hover {
-      text-decoration: underline;
+    .page-hero h2 {
+      font-size: 1.6rem;
+      margin: 0 0 4px;
     }
 
     h1 {
@@ -303,16 +346,28 @@ lightning faucet status
 </head>
 <body>
   <div class="page">
-    <header>
-      <a href="index.html" class="back-link">&larr; Back to The Satoshi Faucet</a>
-      <h1>Faucet Status</h1>
-      <div class="subtitle">
+    <!-- ===== HEADER ===== -->
+    <header class="site-header">
+      <a href="index.html" class="site-header-brand">
+        <img src="tap.png" alt="The Satoshi Faucet" />
+        <div>
+          <h1>The Satoshi Faucet</h1>
+          <div class="subtitle">A tribute to the original Bitcoin Faucet</div>
+        </div>
+      </a>
+      <a href="index.html" class="back-link">&larr; Back to Home</a>
+    </header>
+
+    <!-- Page title -->
+    <div class="page-hero">
+      <h2>Faucet Status</h2>
+      <div class="subtitle" style="color:#555;">
         A public peek at what the faucet is doing: queued, processing, paid, and failed requests.
       </div>
       <div class="meta">
         Last updated: <strong><?php echo htmlspecialchars($lastUpdated, ENT_QUOTES, 'UTF-8'); ?> UTC</strong>
       </div>
-    </header>
+    </div>
 
     <!-- Summary cards -->
     <div class="summary-grid">

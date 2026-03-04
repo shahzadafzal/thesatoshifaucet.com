@@ -514,6 +514,10 @@ $claims = $claimsStmt->fetchAll();
     .run-scheduler-btn:hover:not(:disabled) { background: #155d28; }
     .run-scheduler-btn:disabled { background: #888; cursor: not-allowed; }
 
+    .btn-bg{
+          background-color: #663399;
+    }
+
     .batch-select {
       font-size: 0.85rem;
       padding: 4px 7px;
@@ -546,7 +550,31 @@ $claims = $claimsStmt->fetchAll();
       color: #555;
       margin-top: 4px;
     }
+
+    /* ---- Pay Invoice QR Code ---- */
+    .qr-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      margin-top: 6px;
+      padding: 8px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      width: fit-content;
+    }
+    .qr-box canvas {
+      display: block;
+    }
+    .qr-label {
+      font-size: 0.72rem;
+      color: #555;
+      text-align: center;
+    }
   </style>
+  <!-- QR code generator (MIT licence, ~10 KB) -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 </head>
 <body>
   <div class="page">
@@ -584,6 +612,7 @@ $claims = $claimsStmt->fetchAll();
 
     <div id="scheduler-output-wrap" class="scheduler-output-wrap">
       <pre id="scheduler-output" class="scheduler-output">Running…</pre>
+      <button id="run-refresh-btn" class="run-scheduler-btn btn-bg" onclick="location.reload()">🗘 Refresh</button>
     </div>
 
     <div class="panel">
@@ -646,6 +675,12 @@ $claims = $claimsStmt->fetchAll();
                     <button type="button" class="copy-btn" onclick="copyInvoiceToClipboard(this,'lnbc-copy')">Copy pay invoice</button>
                     <div class="tiny">
                       Paste into your wallet to pay <?php echo (int)$c['sats_requested']; ?> sats.
+                    </div>
+                    <!-- QR Code: unique div id per claim row -->
+                    <div class="qr-box">
+                      <div id="qr-<?php echo (int)$c['id']; ?>"
+                           data-invoice="<?php echo htmlspecialchars($c['pay_bolt11'], ENT_QUOTES, 'UTF-8'); ?>"></div>
+                      <div class="qr-label">⚡ Scan to pay <?php echo (int)$c['sats_requested']; ?> sats</div>
                     </div>
                   </div>
                 <?php else: ?>
@@ -727,7 +762,7 @@ $claims = $claimsStmt->fetchAll();
           output.scrollTop   = output.scrollHeight;
           status.textContent = 'Finished at ' + new Date().toLocaleTimeString();
           // Refresh the page so transaction table shows updated statuses
-          setTimeout(() => location.reload(), 1500);
+          //setTimeout(() => location.reload(), 1500);
         })
         .catch(err => {
           output.textContent = 'Network error: ' + err;
@@ -738,6 +773,22 @@ $claims = $claimsStmt->fetchAll();
           btn.textContent = '▶ Run Scheduler';
         });
     }
+
+    // --- Generate QR codes for all pay invoices on page load ---
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('[id^="qr-"]').forEach(function (el) {
+        var invoice = el.getAttribute('data-invoice');
+        if (!invoice) return;
+        new QRCode(el, {
+          text: invoice,
+          width: 180,
+          height: 180,
+          colorDark: '#000000',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      });
+    });
   </script>
 </body>
 </html>

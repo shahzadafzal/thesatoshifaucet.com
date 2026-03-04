@@ -5,10 +5,8 @@
 <head>
   <meta charset="UTF-8" />
 
-
-
   <!-- Primary SEO -->
-  <title>The Satoshi Faucet – Free Bitcoin & Free Satoshis (Lightning LNURL Faucet)</title>
+  <title>The Satoshi Faucet – Free Bitcoin &amp; Free Satoshis (Lightning LNURL Faucet)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description"
     content="The Satoshi Faucet gives you free Bitcoin (satoshis) instantly using Lightning LNURL. A modern revival of the legendary Bitcoin Faucet. Learn how to get free bitcoin safely and easily.">
@@ -42,68 +40,36 @@ earn bitcoin free
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="The Satoshi Faucet – Free Bitcoin & Free Satoshis">
+  <meta name="twitter:title" content="The Satoshi Faucet – Free Bitcoin &amp; Free Satoshis">
   <meta name="twitter:description"
     content="Earn free satoshis using a Lightning LNURL Bitcoin faucet. No wallet keys stored. Classic faucet, modern tech.">
 
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-
+  <!-- QR code reader for camera scan + image upload -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 
 <body onload="refreshBalance();">
   <div class="page">
-    <header>
-      <!-- Tap graphic (replace tap.png with your actual file) -->
-      <img src="tap.png" alt="Faucet" class="tap-image" />
 
-      <div class="logo-area">
-        <div class="faucet-icon" aria-hidden="true"></div>
-        <div>
+    <!-- ===== HEADER ===== -->
+    <header>
+      <div class="header-inner">
+        <img src="tap.png" alt="Bitcoin Faucet tap" class="tap-image" />
+        <div class="header-text">
           <h1>The Satoshi Faucet</h1>
-          <div class="subtitle">A tribute to the original Bitcoin Faucet — now dripping satoshis.</div>
+          <div class="subtitle">A tribute to the original Bitcoin Faucet &mdash; now dripping satoshis.</div>
         </div>
       </div>
     </header>
 
+    <!-- ===== LAYOUT: main FIRST (mobile-first DOM order) ===== -->
     <div class="layout">
-      <!-- Left column / sidebar -->
-      <aside class="sidebar">
-        <h2>Balance</h2>
-        <div class="sidebar-value" id="available-balance">▲ satoshis available</div>
-        <h2>Other Sites</h2>
-        <ul>
-          <li><a href="https://bitcointalk.org" target="_blank" rel="noopener noreferrer">bitcointalk.org</a></li>
-          <li><a href="https://bitcoin.org" target="_blank" rel="noopener noreferrer">bitcoin.org</a></li>
-          <li><a href="https://en.bitcoin.it/wiki/Main_Page" target="_blank" rel="noopener noreferrer">Bitcoin Wiki</a>
-          </li>
-        </ul>
 
-        <!-- MINI DASHBOARD -->
-        <section class="recent-activity">
-          <h2>Recent Activity</h2>
-          <div class="recent-activity-box">
-            <div class="recent-activity-header">
-              <span class="recent-head-id">ID</span>
-              <span class="recent-head-invoice">Invoice</span>
-              <span class="recent-head-status">Status</span>
-              <span class="recent-head-time">Time</span>
-            </div>
-
-            <ul id="recent-activity-items" class="recent-activity-list">
-              <!-- JS fills rows here -->
-            </ul>
-          </div>
-          <div class="recent-activity-footer">
-            <a href="faucet-status.php">View full status &rarr;</a>
-          </div>
-        </section>
-
-      </aside>
-
-      <!-- Main content -->
+      <!-- ─── MAIN CONTENT (first in DOM = first on mobile) ─── -->
       <main>
         <div class="faucet-panel">
-          <div class="faucet-panel-title">Get Satoshis from the Satoshi Faucet</div>
+          <div class="faucet-panel-title">⚡ Get Satoshis from the Satoshi Faucet</div>
 
           <p>
             The Satoshi Faucet is a tribute to the original <strong>Bitcoin faucet</strong> that lets you
@@ -114,16 +80,15 @@ earn bitcoin free
           </p>
 
           <p class="faucet-panel-text">
-            Bitcoin faucet 2.0 is now giving away a few satoshis per visitor. Just complete the reCAPTCHA, 
-            enter your Lightning (lnurl1...)
-            receiving address, and press <strong>Get Some!</strong>
+            Just complete the reCAPTCHA, enter your LNURL (or scan your QR code),
+            and press <strong>Get Some!</strong>
           </p>
 
           <form id="faucet-form" autocomplete="off">
             <div class="captcha-wrap">
               <div class="captcha-note">
-                We offer free sats to all intelligent life — but not automated bots.<br>
-                Please prove you're not an AI robot by completing the reCAPTCHA below.
+                We offer free sats to all intelligent life &mdash; but not automated bots.<br>
+                Please prove you're not a robot by completing the reCAPTCHA below.
               </div>
               <!-- Google reCAPTCHA -->
               <div class="g-recaptcha" data-sitekey="6LfFKSEsAAAAAKBqHR-UMEAQppJZ58vzoY4R_qb_"></div>
@@ -131,7 +96,6 @@ earn bitcoin free
                 (No tracking, no wallet keys, just a quick human check.)
               </p>
             </div>
-            
 
             <div class="address-row">
               <label for="address-input">Your LNURL (Lightning Address):</label>
@@ -139,27 +103,61 @@ earn bitcoin free
               <button type="submit" class="btn-primary" id="get-button">Get Some!</button>
             </div>
 
-            <p style="font-size:0.85rem;margin-top:6px;">
+            <!-- QR scan / upload buttons -->
+            <div class="qr-btn-row">
+              <button type="button" id="btn-scan-camera" class="btn-qr">
+                📷 Scan QR Code
+              </button>
+              <button type="button" id="btn-upload-qr" class="btn-qr btn-qr-upload">
+                🖼️ Upload QR Image
+              </button>
+              <!-- hidden file input for image upload -->
+              <input type="file" id="qr-file-input" accept="image/*" style="display:none" />
+            </div>
+
+            <!-- Confirmation strip shown after a successful scan -->
+            <div id="qr-confirm-strip" class="qr-confirm-strip" style="display:none;">
+              <div class="qr-confirm-title">✅ QR Decoded &mdash; please confirm your LNURL:</div>
+              <div id="qr-decoded-text" class="qr-decoded-text"></div>
+              <div class="qr-confirm-hint">
+                The address above has been filled in. Review it, then click <strong>Get Some!</strong>
+              </div>
+            </div>
+
+            <!-- Camera modal overlay -->
+            <div id="qr-modal" class="qr-modal">
+              <div class="qr-modal-box">
+                <div class="qr-modal-header">
+                  <strong>📷 Scan your LNURL QR Code</strong>
+                  <button type="button" id="btn-close-scanner" class="qr-modal-close">&#x2715;</button>
+                </div>
+                <div id="qr-reader" style="width:100%;"></div>
+                <p class="qr-modal-hint">
+                  Point your camera at the LNURL QR code in your wallet.
+                </p>
+              </div>
+            </div>
+
+            <p class="help-link">
               Need help?
-              <a href="how-to-get-lnurl.html" rel="noopener">
-                How to get your LNURL
-              </a>
+              <a href="how-to-get-lnurl.html" rel="noopener">How to get your LNURL</a>
             </p>
 
             <div class="status-message" id="status-message" aria-live="polite"></div>
           </form>
-
         </div>
 
         <!-- Informational sections -->
         <section>
           <h2>What are Satoshis?</h2>
           <p>
-            Satoshis (or “sats”) are the smallest unit of bitcoin. One bitcoin equals 100&nbsp;000&nbsp;000 satoshis.
+            Satoshis (or &ldquo;sats&rdquo;) are the smallest unit of bitcoin. One bitcoin equals
+            100&nbsp;000&nbsp;000 satoshis.
             Just like cents are to dollars, sats let you send tiny pieces of bitcoin around the world.
           </p>
           <p>
-            Bitcoin itself is a new kind of money. It isn’t created or controlled by any single government or company.
+            Bitcoin itself is a new kind of money. It isn&rsquo;t created or controlled by any single government or
+            company.
             It runs on a peer-to-peer network secured by cryptography.
           </p>
         </section>
@@ -170,12 +168,13 @@ earn bitcoin free
             Download a Bitcoin or Lightning wallet (for example from
             <a href="https://bitcoin.org/en/choose-your-wallet" target="_blank"
               rel="noopener noreferrer">bitcoin.org</a>).
-            Your wallet will show you a receiving address or invoice you can paste here.
+            Your wallet will show you a receiving address or LNURL you can paste here &mdash; or scan with the
+            button above.
           </p>
         </section>
 
         <section>
-          <h2>I’ve got sats – how can I help?</h2>
+          <h2>I&rsquo;ve got sats &ndash; how can I help?</h2>
           <p>
             This faucet is just for fun and nostalgia. If you want to keep it flowing, you can donate a little bitcoin
             to its on-chain or Lightning address (to be listed here once the backend is live).
@@ -183,10 +182,10 @@ earn bitcoin free
         </section>
 
         <section>
-          <h2>What’s the catch?</h2>
+          <h2>What&rsquo;s the catch?</h2>
           <p>
-            No catch – I just want to keep the spirit of the original Bitcoin Faucet alive and give newcomers a tiny
-            taste of sats to start with.
+            No catch &ndash; I just want to keep the spirit of the original Bitcoin Faucet alive and give newcomers a
+            tiny taste of sats to start with.
           </p>
         </section>
 
@@ -197,10 +196,51 @@ earn bitcoin free
           | <a href="dear-hackers.html" style="font-size:0.8rem;">A friendly message to hackers</a>
         </footer>
       </main>
-    </div>
-  </div>
 
+      <!-- ─── SIDEBAR (second in DOM = below main on mobile, pulled LEFT on desktop via CSS order:-1) ─── -->
+      <aside class="sidebar">
+        <div class="sidebar-balance">
+          <h2>Balance</h2>
+          <div class="sidebar-value" id="available-balance">▲ satoshis available</div>
+        </div>
+
+        <!-- Recent Activity: shown right after main on mobile -->
+        <section class="recent-activity">
+          <h2>Recent Activity</h2>
+          <div class="recent-activity-box">
+            <div class="recent-activity-header">
+              <span class="recent-head-id">ID</span>
+              <span class="recent-head-invoice">Invoice</span>
+              <span class="recent-head-status">Status</span>
+              <span class="recent-head-time">Time</span>
+            </div>
+            <ul id="recent-activity-items" class="recent-activity-list">
+              <!-- JS fills rows here -->
+            </ul>
+          </div>
+          <div class="recent-activity-footer">
+            <a href="faucet-status.php">View full status &rarr;</a>
+          </div>
+        </section>
+
+        <!-- Other Sites: tucked below recent activity -->
+        <div class="other-sites">
+          <h2>Other Sites</h2>
+          <ul>
+            <li><a href="https://bitcointalk.org" target="_blank" rel="noopener noreferrer">bitcointalk.org</a></li>
+            <li><a href="https://bitcoin.org" target="_blank" rel="noopener noreferrer">bitcoin.org</a></li>
+            <li><a href="https://en.bitcoin.it/wiki/Main_Page" target="_blank" rel="noopener noreferrer">Bitcoin
+                Wiki</a></li>
+          </ul>
+        </div>
+      </aside>
+
+    </div><!-- /.layout -->
+  </div><!-- /.page -->
+
+  <!-- ===== SCRIPTS ===== -->
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+
   <script>
     (function () {
       const form = document.getElementById("faucet-form");
@@ -215,7 +255,7 @@ earn bitcoin free
 
         const invoice = addressEl.value.trim();
         if (!invoice) {
-          statusEl.textContent = "Please paste a Lightning invoice (BOLT11).";
+          statusEl.textContent = "Please paste your LNURL (starts with lnurl1...).";
           statusEl.classList.add("status-error");
           return;
         }
@@ -245,7 +285,7 @@ earn bitcoin free
             if (data.status === "queued") {
               statusEl.textContent = data.message + " (Invoice: " + data.invoice + ")";
               statusEl.classList.add("status-success");
-              window.refreshRecentActivity(); // refresh recent activity list
+              window.refreshRecentActivity();
             } else if (data.status === "already_claimed") {
               statusEl.textContent = data.message + " (Invoice: " + data.invoice + ")";
               statusEl.classList.add("status-error");
@@ -270,6 +310,75 @@ earn bitcoin free
     })();
   </script>
 
+  <!-- ===== QR Scan / Upload Logic ===== -->
+  <script>
+    (function () {
+      const addressEl = document.getElementById('address-input');
+      const confirmStrip = document.getElementById('qr-confirm-strip');
+      const decodedText = document.getElementById('qr-decoded-text');
+      const qrModal = document.getElementById('qr-modal');
+      const btnCamera = document.getElementById('btn-scan-camera');
+      const btnUpload = document.getElementById('btn-upload-qr');
+      const fileInput = document.getElementById('qr-file-input');
+      const btnClose = document.getElementById('btn-close-scanner');
+
+      let html5Qr = null;
+
+      function onDecoded(text) {
+        addressEl.value = text.trim();
+        decodedText.textContent = text.trim();
+        confirmStrip.style.display = 'block';
+        addressEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      function openScanner() {
+        qrModal.style.display = 'flex';
+        html5Qr = new Html5Qrcode('qr-reader');
+        html5Qr.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 240, height: 240 } },
+          function (result) { closeScanner(); onDecoded(result); },
+          function () { }
+        ).catch(function (err) {
+          closeScanner();
+          alert('Camera error: ' + err + '\n\nTry using the "Upload QR Image" option instead.');
+        });
+      }
+
+      function closeScanner() {
+        qrModal.style.display = 'none';
+        if (html5Qr) {
+          html5Qr.stop().catch(function () { }).finally(function () {
+            html5Qr.clear();
+            html5Qr = null;
+          });
+        }
+      }
+
+      btnCamera.addEventListener('click', openScanner);
+      btnClose.addEventListener('click', closeScanner);
+      qrModal.addEventListener('click', function (e) {
+        if (e.target === qrModal) closeScanner();
+      });
+
+      btnUpload.addEventListener('click', function () {
+        fileInput.value = '';
+        fileInput.click();
+      });
+
+      fileInput.addEventListener('change', function () {
+        const file = fileInput.files[0];
+        if (!file) return;
+        Html5Qrcode.scanFile(file, true)
+          .then(function (result) { onDecoded(result); })
+          .catch(function () {
+            alert('Could not read a QR code from that image.\nMake sure the image is clear and contains an LNURL QR code.');
+          });
+      });
+    })();
+  </script>
+
+  <!-- ===== Recent Activity ===== -->
   <script>
     (function () {
       const listEl = document.getElementById("recent-activity-items");
@@ -282,7 +391,7 @@ earn bitcoin free
           const li = document.createElement("li");
           li.className = "recent-activity-item";
           li.innerHTML =
-            '<div class="recent-col-id">–</div>' +
+            '<div class="recent-col-id">&ndash;</div>' +
             '<div class="recent-col-invoice">No activity yet.</div>' +
             '<div class="recent-col-status"></div>' +
             '<div class="recent-col-time"></div>';
@@ -294,17 +403,15 @@ earn bitcoin free
           const li = document.createElement("li");
           li.className = "recent-activity-item";
 
-          // Col 1: ID
           const colId = document.createElement("div");
           colId.className = "recent-col-id";
           colId.textContent = item.id;
 
-          // Col 2: invoice pill (short text, full in tooltip)
           const colInvoice = document.createElement("div");
           colInvoice.className = "recent-col-invoice";
           const pill = document.createElement("span");
           pill.className = "recent-invoice-pill";
-          pill.title = item.invoiceFull || ""; // full invoice on mouseover
+          pill.title = item.invoiceFull || "";
 
           const icon = document.createElement("span");
           icon.className = "recent-invoice-icon";
@@ -317,7 +424,6 @@ earn bitcoin free
           pill.appendChild(text);
           colInvoice.appendChild(pill);
 
-          // Col 3: status pill
           const colStatus = document.createElement("div");
           colStatus.className = "recent-col-status";
 
@@ -329,7 +435,6 @@ earn bitcoin free
 
           statusPill.className = "recent-status-pill recent-status-" + cssKey;
 
-          // 🟡 Tooltip text: show sats sent if >0, otherwise sats requested
           const satsRequested = typeof item.satsRequested === "number" ? item.satsRequested : 0;
           const satsSent = typeof item.satsSent === "number" ? item.satsSent : 0;
 
@@ -353,15 +458,13 @@ earn bitcoin free
           statusPill.appendChild(statusText);
           colStatus.appendChild(statusPill);
 
-
-          // Col 4: clock icon with tooltip = last updated
           const colTime = document.createElement("div");
           colTime.className = "recent-col-time";
           const timeSpan = document.createElement("span");
           timeSpan.className = "recent-time-icon";
           timeSpan.textContent = "🕒";
 
-          colStatus.title = "Stats Sent: " + (item.satsSent || 0);
+          colStatus.title = "Sats Sent: " + (item.satsSent || 0);
 
           const lastTime = item.updatedAt || item.createdAt || "";
           timeSpan.title = lastTime
@@ -381,22 +484,29 @@ earn bitcoin free
       window.refreshRecentActivity = function () {
         fetch("recent-activity.php", { cache: "no-store" })
           .then(function (res) { return res.json(); })
-          .then(function (data) {
-            renderItems(data.items || []);
-          })
-          .catch(function () {
-            // You can log errors if you want
-          });
+          .then(function (data) { renderItems(data.items || []); })
+          .catch(function () { });
       };
 
-      // Initial load + poll
       window.refreshRecentActivity();
-      //setInterval(window.refreshRecentActivity, 6000); // every 6 seconds
     })();
-
-    // on page load
-
   </script>
+
+  <script>
+    function refreshBalance() {
+      fetch("balance.php", { cache: "no-store" })
+        .then(r => r.json())
+        .then(data => {
+          const el = document.getElementById("available-balance");
+          if (!el) return;
+          if (data && data.ok) {
+            el.textContent = "▲ " + Number(data.balance).toLocaleString() + " satoshis available";
+          }
+        })
+        .catch(() => { });
+    }
+  </script>
+
   <script src="scripts/faucet.js" async defer></script>
 </body>
 

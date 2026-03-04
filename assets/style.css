@@ -1,8 +1,21 @@
+/* ============================================================
+   style.css – The Satoshi Faucet
+   Mobile-first: main content first, sidebar below on mobile,
+   sidebar pulled LEFT on desktop via order:-1
+   ============================================================ */
+
 :root {
   --accent: #c9302c;
   --accent-dark: #a72824;
+  --bitcoin: #f7931a;
   --border-color: #ddd;
   --bg-light: #fafafa;
+  --bg-panel: #ffffff;
+  --text-main: #1a1a1a;
+  --text-muted: #666;
+  --radius: 8px;
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 2px 10px rgba(0, 0, 0, 0.10);
   --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -14,201 +27,220 @@ body {
   margin: 0;
   padding: 0;
   font-family: var(--font-main);
-  background: #ffffff;
-  color: #222;
-  line-height: 1.5;
+  background: #f4f4f4;
+  color: var(--text-main);
+  line-height: 1.55;
+  font-size: 16px;
 }
 
+/* ─── Page wrapper ─── */
 .page {
-  max-width: 960px;
+  max-width: 980px;
   margin: 0 auto;
-  padding: 24px 16px 40px;
+  padding: 16px 14px 48px;
 }
 
+/* ============================================================
+   HEADER
+   ============================================================ */
 header {
-  text-align: center;
-  margin-bottom: 50px;
-  position: relative;
-  /* so we can position the tap inside */
-  padding-left: 120px;
-  /* leave room for tap on the left */
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0d1b2a 100%);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-md);
 }
 
-.logo-area {
-  display: inline-flex;
+.header-inner {
+  display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 18px;
 }
 
-.faucet-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 4px;
-  border: 2px solid var(--accent);
-  position: relative;
-}
-
-.faucet-icon::before,
-.faucet-icon::after {
-  content: "";
-  position: absolute;
-  background: var(--accent);
-}
-
-.faucet-icon::before {
-  /* horizontal pipe */
-  height: 8px;
-  width: 85%;
-  top: 8px;
-  left: 3px;
-  border-radius: 4px;
-}
-
-.faucet-icon::after {
-  /* drop */
-  width: 8px;
-  height: 12px;
-  border-radius: 50%;
-  bottom: 4px;
-  left: 16px;
-}
-
-/* Tap image in the top-left */
 .tap-image {
-  position: absolute;
-  left: 0;
-  top: 0;
-  max-width: 120px;
+  width: 72px;
   height: auto;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
 }
 
-h1 {
-  font-size: 2.1rem;
-  margin: 0;
-  font-weight: 600;
+.header-text h1 {
+  font-size: clamp(1.4rem, 5vw, 2rem);
+  margin: 0 0 4px;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: -0.3px;
 }
 
 .subtitle {
-  margin-top: 6px;
-  font-size: 0.95rem;
-  color: #666;
-}
-
-.layout {
-  display: flex;
-  align-items: flex-start;
-  gap: 24px;
-  margin-top: 24px;
-}
-
-.sidebar {
-  flex: 0 0 170px;
-  font-size: 0.9rem;
-  border-right: 1px solid var(--border-color);
-  padding-right: 16px;
-}
-
-.sidebar h2 {
-  font-size: 1rem;
-  margin-top: 0;
-  margin-bottom: 8px;
-}
-
-.sidebar-value {
-  font-weight: 600;
-  margin-bottom: 16px;
-}
-
-.sidebar ul {
-  list-style: none;
-  padding: 0;
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.65);
   margin: 0;
 }
 
-.sidebar li+li {
-  margin-top: 4px;
+/* Stack on very small screens */
+@media (max-width: 420px) {
+  .header-inner {
+    flex-direction: column;
+    text-align: center;
+    gap: 10px;
+  }
+
+  .tap-image {
+    width: 58px;
+  }
 }
 
-.sidebar a {
-  color: #1a0dab;
-  text-decoration: none;
-}
-
-.sidebar a:hover {
-  text-decoration: underline;
+/* ============================================================
+   LAYOUT: Flex row on desktop, column on mobile
+   aside uses order:-1 to appear LEFT on desktop
+   ============================================================ */
+.layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
 }
 
 main {
   flex: 1;
   min-width: 0;
+  /* prevent flex overflow */
 }
 
+.sidebar {
+  flex: 0 0 300px;
+  order: -1;
+  /* ← pulls sidebar to the LEFT on desktop even though it's 2nd in DOM */
+  min-width: 0;
+}
+
+/* Mobile: stack vertically, sidebar goes BELOW main (natural DOM order) */
+@media (max-width: 720px) {
+  .layout {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .sidebar {
+    order: 0;
+    /* ← restore natural DOM order: appears after <main> on mobile */
+    flex: none;
+    width: 100%;
+  }
+}
+
+/* ============================================================
+   FAUCET PANEL
+   ============================================================ */
 .faucet-panel {
+  background: var(--bg-panel);
   border: 1px solid var(--border-color);
-  padding: 16px;
-  background: var(--bg-light);
-  margin-bottom: 24px;
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
 }
 
 .faucet-panel-title {
-  font-weight: 600;
-  margin-bottom: 8px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 10px;
 }
 
 .faucet-panel-text {
-  font-size: 0.95rem;
-  margin-bottom: 12px;
+  font-size: 0.94rem;
+  color: var(--text-muted);
+  margin-bottom: 14px;
 }
 
+/* ============================================================
+   CAPTCHA
+   ============================================================ */
 .captcha-wrap {
   border: 2px solid var(--accent);
-  background: #fff;
+  border-radius: 6px;
+  background: #fff8f8;
   padding: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .captcha-note {
   font-size: 0.8rem;
-  color: #555;
+  color: var(--text-muted);
   margin-bottom: 8px;
+  line-height: 1.4;
 }
 
+/* Prevent reCAPTCHA overflow on small screens */
+.g-recaptcha {
+  transform-origin: left top;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+@media (max-width: 360px) {
+  .g-recaptcha {
+    transform: scale(0.85);
+  }
+}
+
+/* ============================================================
+   ADDRESS ROW + FORM INPUTS
+   ============================================================ */
 .address-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 14px;
   font-size: 0.9rem;
 }
 
 .address-row label {
-  white-space: nowrap;
+  width: 100%;
+  font-weight: 600;
+  font-size: 0.88rem;
 }
 
 .address-row input[type="text"] {
   flex: 1;
-  min-width: 180px;
-  padding: 6px 8px;
-  border-radius: 2px;
-  border: 1px solid #ccc;
-  font-size: 0.9rem;
+  min-width: 0;
+  padding: 9px 10px;
+  border-radius: 5px;
+  border: 1px solid #bbb;
+  font-size: 0.92rem;
+  transition: border-color 0.15s;
 }
 
+.address-row input[type="text"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(201, 48, 44, 0.12);
+}
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
 .btn-primary {
-  padding: 7px 14px;
+  padding: 9px 18px;
   background: var(--accent);
   color: #fff;
-  border: 1px solid var(--accent-dark);
-  border-radius: 2px;
-  font-size: 0.9rem;
+  border: none;
+  border-radius: 5px;
+  font-size: 0.95rem;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  transition: background 0.15s, transform 0.1s;
 }
 
 .btn-primary:hover {
   background: var(--accent-dark);
+}
+
+.btn-primary:active {
+  transform: scale(0.97);
 }
 
 .btn-primary:disabled {
@@ -216,45 +248,278 @@ main {
   cursor: default;
 }
 
-.status-message {
+/* QR scan / upload buttons */
+.qr-btn-row {
+  display: flex;
+  gap: 8px;
   margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-qr {
+  padding: 7px 14px;
+  font-size: 0.84rem;
+  border-radius: 5px;
+  border: 1px solid #1a73e8;
+  background: #1a73e8;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.btn-qr:hover {
+  background: #1558b0;
+  border-color: #1558b0;
+}
+
+.btn-qr-upload {
+  background: #fff;
+  color: #1a73e8;
+}
+
+.btn-qr-upload:hover {
+  background: #e8f0fe;
+}
+
+/* ============================================================
+   QR CONFIRMATION STRIP
+   ============================================================ */
+.qr-confirm-strip {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #fffbe6;
+  border: 1px solid #f0c040;
+  border-radius: 6px;
   font-size: 0.85rem;
+}
+
+.qr-confirm-title {
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: #7a5a00;
+}
+
+.qr-decoded-text {
+  font-family: "SFMono-Regular", Menlo, Monaco, Consolas, "Courier New", monospace;
+  word-break: break-all;
+  font-size: 0.78rem;
+  color: #333;
+  background: #fff;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  margin-bottom: 5px;
+}
+
+.qr-confirm-hint {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+/* ============================================================
+   QR CAMERA MODAL
+   ============================================================ */
+.qr-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.78);
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-modal-box {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 370px;
+  width: 92%;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+}
+
+.qr-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  font-size: 1rem;
+}
+
+.qr-modal-close {
+  border: none;
+  background: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  line-height: 1;
+  color: #555;
+  padding: 0 2px;
+}
+
+.qr-modal-close:hover {
+  color: #000;
+}
+
+.qr-modal-hint {
+  font-size: 0.78rem;
+  color: #888;
+  margin-top: 8px;
+  text-align: center;
+}
+
+/* ============================================================
+   HELP LINK & STATUS
+   ============================================================ */
+.help-link {
+  font-size: 0.84rem;
+  margin-top: 12px;
+  color: var(--text-muted);
+}
+
+.status-message {
+  margin-top: 12px;
+  font-size: 0.88rem;
   color: #444;
+  border-radius: 5px;
+  padding: 2px 0;
+  word-break: break-word;
 }
 
 .status-success {
   color: #0a7f00;
+  font-weight: 600;
 }
 
 .status-error {
   color: #b30000;
+  font-weight: 600;
 }
 
+/* ============================================================
+   INFO SECTIONS & FOOTER
+   ============================================================ */
 section {
-  margin-bottom: 20px;
-  font-size: 0.95rem;
+  margin-bottom: 18px;
+  font-size: 0.93rem;
 }
 
 section h2 {
-  font-size: 1.1rem;
-  margin-bottom: 6px;
+  font-size: 1.05rem;
+  margin-bottom: 5px;
+  margin-top: 0;
+  color: var(--text-main);
 }
 
 section p {
-  margin: 4px 0;
+  margin: 3px 0;
+  color: var(--text-muted);
 }
 
 footer {
-  margin-top: 32px;
+  margin-top: 28px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color);
   font-size: 0.8rem;
-  color: #777;
-  text-align: center;
+  color: #888;
 }
 
-/************/
+footer a {
+  color: #1a0dab;
+}
+
+/* ============================================================
+   SIDEBAR
+   ============================================================ */
+.sidebar {
+  font-size: 0.88rem;
+}
+
+.sidebar-balance {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.sidebar-balance h2 {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin: 0 0 6px;
+}
+
+.sidebar-value {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--bitcoin);
+}
+
+.other-sites {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-top: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.other-sites h2 {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+
+.other-sites ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.other-sites li+li {
+  margin-top: 4px;
+}
+
+.other-sites a {
+  color: #1a0dab;
+  text-decoration: none;
+  font-size: 0.84rem;
+}
+
+.other-sites a:hover {
+  text-decoration: underline;
+}
+
+/* Hide Other Sites on mobile to reduce clutter */
+@media (max-width: 720px) {
+  .other-sites {
+    display: none;
+  }
+}
+
+/* ============================================================
+   RECENT ACTIVITY MINI DASHBOARD
+   ============================================================ */
 .recent-activity {
-  margin-top: 18px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
   font-size: 0.85rem;
+}
+
+.recent-activity h2 {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin: 0 0 10px;
 }
 
 .recent-activity-box {
@@ -262,39 +527,36 @@ footer {
   background: linear-gradient(135deg, #fffdf7, #f7fbff);
   border-radius: 6px;
   padding: 6px 6px 4px;
-  max-height: 660px;
+  max-height: 520px;
   overflow-y: auto;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-      overflow-x: hidden;
+  overflow-x: hidden;
 }
 
 /* Header row */
 .recent-activity-header {
   display: grid;
-  grid-template-columns: 36px 1fr 70px 32px; /* ID | invoice | status | clock */
+  grid-template-columns: 34px 1fr 70px 28px;
   gap: 4px;
   padding: 2px 4px 4px;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #777;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
+  color: #888;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .recent-head-id {
   text-align: center;
 }
-.recent-head-invoice {
-  text-align: left;
-}
+
 .recent-head-status {
   text-align: center;
 }
+
 .recent-head-time {
   text-align: center;
 }
 
-/* Rows: ONE transaction = ONE row */
 .recent-activity-list {
   list-style: none;
   margin: 0;
@@ -303,45 +565,43 @@ footer {
 
 .recent-activity-item {
   display: grid;
-  grid-template-columns: 36px 1fr 70px 32px;
+  grid-template-columns: 34px 1fr 70px 28px;
   align-items: center;
   gap: 4px;
-  padding: 3px 4px;
-  border-bottom: 1px solid rgba(0,0,0,0.03);
-}
-
-.recent-activity-item:nth-child(odd) {
-  background: rgba(255,255,255,0.6);
+  padding: 4px 4px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 .recent-activity-item:last-child {
   border-bottom: none;
 }
 
-/* Col 1: ID */
+.recent-activity-item:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.6);
+}
+
 .recent-col-id {
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 600;
-  color: #555;
+  color: #666;
   text-align: center;
 }
 
-/* Col 2: Invoice pill */
 .recent-col-invoice {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  min-width: 0;
 }
 
 .recent-invoice-pill {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   padding: 2px 6px;
   border-radius: 999px;
-  background: rgba(0,0,0,0.04);
-  font-size: 0.76rem;
-  max-width: 140px;
+  background: rgba(0, 0, 0, 0.05);
+  font-size: 0.74rem;
+  max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -349,10 +609,9 @@ footer {
 }
 
 .recent-invoice-icon {
-  font-size: 0.78rem;
+  font-size: 0.74rem;
 }
 
-/* Col 3: Status pill */
 .recent-col-status {
   text-align: center;
 }
@@ -362,14 +621,13 @@ footer {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 2px 6px;
+  padding: 2px 5px;
   border-radius: 999px;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 600;
   border: 1px solid transparent;
 }
 
-/* base colors */
 .recent-status-pending,
 .recent-status-processing {
   background: #fff7e0;
@@ -390,64 +648,40 @@ footer {
   color: #a30000;
 }
 
-/* Col 4: clock icon */
 .recent-col-time {
   text-align: center;
 }
 
 .recent-time-icon {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   cursor: default;
-  opacity: 0.85;
+  opacity: 0.8;
 }
 
-/* Footer link */
 .recent-activity-footer {
-  border-top: 1px solid rgba(0,0,0,0.06);
-  margin-top: 4px;
-  padding-top: 4px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  margin-top: 6px;
+  padding-top: 5px;
   text-align: right;
-  font-size: 0.75rem;
+  font-size: 0.74rem;
 }
 
-
-/*************/
-@media (max-width: 768px) {
-  .layout {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    border-right: none;
-    border-bottom: 1px solid var(--border-color);
-    padding-right: 0;
-    padding-bottom: 12px;
-    margin-bottom: 16px;
-  }
-
-  .faucet-panel {
-    padding: 14px;
-  }
+.recent-activity-footer a {
+  color: #1a0dab;
+  text-decoration: none;
 }
 
-/* Make the tap behave nicely on small screens */
-@media (max-width: 600px) {
-  header {
-    padding-left: 0;
-  }
-
-  .tap-image {
-    position: static;
-    display: block;
-    margin: 0 auto 8px;
-  }
+.recent-activity-footer a:hover {
+  text-decoration: underline;
 }
 
+/* ============================================================
+   REDUCED MOTION
+   ============================================================ */
 @media (prefers-reduced-motion: reduce) {
   * {
     scroll-behavior: auto !important;
     animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
 }
