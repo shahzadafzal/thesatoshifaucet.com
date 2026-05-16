@@ -1,8 +1,11 @@
 .git/
 .vscode/
 node_modules/
+vendor/
 dist/
 build/
+backup/
+backups/
 .env
 *.log
 .DS_Store

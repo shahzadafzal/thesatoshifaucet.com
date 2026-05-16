@@ -127,7 +127,10 @@ lightning faucet status
 ">
 
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="images//favicon-16x16.png">
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
   <style>
     :root {
       --accent: #c9302c;
@@ -349,7 +352,7 @@ lightning faucet status
     <!-- ===== HEADER ===== -->
     <header class="site-header">
       <a href="index.html" class="site-header-brand">
-        <img src="tap.png" alt="The Satoshi Faucet" />
+        <img src="images/tap.png" alt="The Satoshi Faucet" />
         <div>
           <h1>The Satoshi Faucet</h1>
           <div class="subtitle">A tribute to the original Bitcoin Faucet</div>
