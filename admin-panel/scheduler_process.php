@@ -394,6 +394,261 @@ function mark_failed(PDO $pdo, int $id, string $reason, bool $refundOnFail, stri
 }
 
 
+/**
+ * ============================================================
+ * SEND CLAIM EMAIL NOTIFICATION
+ * ============================================================
+ * Sends an email to admin with full transaction details
+ * whenever a Sats claim is successfully paid.
+ * 
+ * Uses cPanel SMTP server with SSL/TLS encryption.
+ * Runs asynchronously - does not block scheduler processing.
+ * 
+ * DISABLE EMAIL: Set $EMAIL_ENABLED = false in config.local.php
+ * or comment out the function call in the main loop below.
+ * ============================================================
+ */
+function send_claim_email(
+    string $adminEmail,
+    string $lnurl,
+    string $domain,
+    int $rewardSats,
+    string $status,
+    ?string $paymentRef = null,
+    ?string $userIp = null,
+    ?string $invoiceData = null,
+    ?string $transactionId = null
+): bool {
+    global $EMAIL_ENABLED, $EMAIL_SMTP_HOST, $EMAIL_SMTP_PORT, $EMAIL_SMTP_USER, $EMAIL_SMTP_PASS, $EMAIL_SMTP_SECURE, $EMAIL_FROM;
+
+    if (empty($EMAIL_ENABLED) || !$adminEmail) {
+        return false;
+    }
+
+    try {
+        // Build email subject and body
+        $subject = "[TheSatoshiFaucet] New Claim Request - " . ($status === 'paid' ? '✅ PAID' : '⏳ PROCESSING');
+        
+        $body = <<<EOT
+=============================================================
+         SATOSHI FAUCET - CLAIM NOTIFICATION
+=============================================================
+
+TRANSACTION STATUS: {$status}
+Timestamp: {$__TS = date('Y-m-d H:i:s')} UTC
+
+=============================================================
+RECEIVER DETAILS
+=============================================================
+Domain/Wallet Provider: {$domain}
+User IP Address: {$userIp}
+LNURL (Payment Address):
+{$lnurl}
+
+=============================================================
+REWARD DETAILS
+=============================================================
+Amount Requested: {$rewardSats} sats
+Status: {$status}
+
+=============================================================
+PAYMENT INFORMATION
+=============================================================
+Payment Reference: {$paymentRef}
+Transaction ID: {$transactionId}
+Invoice Data: {$invoiceData}
+
+=============================================================
+This is an automated notification. Do not reply to this email.
+=============================================================
+EOT;
+
+        // If SMTP is configured, use SMTP with SSL/TLS
+        if (!empty($EMAIL_SMTP_HOST)) {
+            return send_via_smtp(
+                $adminEmail,
+                $subject,
+                $body,
+                $EMAIL_SMTP_HOST,
+                $EMAIL_SMTP_PORT,
+                $EMAIL_SMTP_USER,
+                $EMAIL_SMTP_PASS,
+                $EMAIL_SMTP_SECURE,
+                $EMAIL_FROM
+            );
+        } else {
+            // Fallback: use PHP's mail() function
+            $headers = "From: {$EMAIL_FROM}\r\n";
+            $headers .= "Reply-To: {$EMAIL_FROM}\r\n";
+            $headers .= "X-Mailer: TheSatoshiFaucet/1.0\r\n";
+            $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+            
+            return mail($adminEmail, $subject, $body, $headers);
+        }
+    } catch (Throwable $e) {
+        echo "[EMAIL] Error: " . $e->getMessage() . "\n";
+        return false;
+    }
+}
+
+
+/**
+ * Send email via SMTP (cPanel SMTP with SSL/TLS)
+ * Non-blocking, handles errors gracefully
+ */
+function send_via_smtp(
+    string $to,
+    string $subject,
+    string $body,
+    string $host,
+    int $port,
+    string $user,
+    string $pass,
+    string $secure,
+    string $from
+): bool {
+    try {
+        // Determine SSL/TLS context
+        $contextOptions = [
+            'ssl' => [
+                'verify_peer'       => true,
+                'verify_peer_name'  => true,
+                'allow_self_signed' => false,
+            ]
+        ];
+
+        if ($secure === 'ssl') {
+            $context = stream_context_create($contextOptions);
+            $socket = @stream_socket_client(
+                "ssl://{$host}:{$port}",
+                $errNo,
+                $errStr,
+                10,
+                STREAM_CLIENT_CONNECT,
+                $context
+            );
+        } else {
+            // TLS (STARTTLS)
+            $socket = @stream_socket_client(
+                "tcp://{$host}:{$port}",
+                $errNo,
+                $errStr,
+                10
+            );
+        }
+
+        if (!$socket) {
+            echo "[EMAIL] SMTP connection failed: {$errStr} (Error {$errNo})\n";
+            return false;
+        }
+
+        // Read SMTP banner
+        $response = fgets($socket, 512);
+        if (strpos($response, '220') === false) {
+            fclose($socket);
+            echo "[EMAIL] Invalid SMTP banner: {$response}\n";
+            return false;
+        }
+
+        // EHLO command
+        fwrite($socket, "EHLO localhost\r\n");
+        while ($response = fgets($socket, 512)) {
+            if (strpos($response, '250 ') === 0) break;
+            if (strpos($response, '-') === false && strpos($response, '250') === 0) break;
+        }
+
+        // AUTH LOGIN
+        fwrite($socket, "AUTH LOGIN\r\n");
+        $response = fgets($socket, 512);
+        if (strpos($response, '334') === false) {
+            fclose($socket);
+            echo "[EMAIL] AUTH not supported: {$response}\n";
+            return false;
+        }
+
+        // Send username (base64)
+        fwrite($socket, base64_encode($user) . "\r\n");
+        $response = fgets($socket, 512);
+
+        // Send password (base64)
+        fwrite($socket, base64_encode($pass) . "\r\n");
+        $response = fgets($socket, 512);
+        if (strpos($response, '235') === false) {
+            fclose($socket);
+            echo "[EMAIL] SMTP authentication failed: {$response}\n";
+            return false;
+        }
+
+        // MAIL FROM
+        fwrite($socket, "MAIL FROM:<{$from}>\r\n");
+        $response = fgets($socket, 512);
+        if (strpos($response, '250') === false) {
+            fclose($socket);
+            echo "[EMAIL] MAIL FROM rejected: {$response}\n";
+            return false;
+        }
+
+        // RCPT TO
+        fwrite($socket, "RCPT TO:<{$to}>\r\n");
+        $response = fgets($socket, 512);
+        if (strpos($response, '250') === false) {
+            fclose($socket);
+            echo "[EMAIL] RCPT TO rejected: {$response}\n";
+            return false;
+        }
+
+        // DATA
+        fwrite($socket, "DATA\r\n");
+        $response = fgets($socket, 512);
+        if (strpos($response, '354') === false) {
+            fclose($socket);
+            echo "[EMAIL] DATA rejected: {$response}\n";
+            return false;
+        }
+
+        // Build complete email
+        $date = date('r');
+        $emailContent = "Date: {$date}\r\n";
+        $emailContent .= "From: {$from}\r\n";
+        $emailContent .= "To: {$to}\r\n";
+        $emailContent .= "Subject: {$subject}\r\n";
+        $emailContent .= "X-Mailer: TheSatoshiFaucet/1.0\r\n";
+        $emailContent .= "Content-Type: text/plain; charset=UTF-8\r\n";
+        $emailContent .= "\r\n";
+        $emailContent .= $body;
+        $emailContent .= "\r\n";
+
+        // Send email content (escape dots at line start)
+        $lines = explode("\r\n", $emailContent);
+        foreach ($lines as $line) {
+            if (substr($line, 0, 1) === '.') {
+                $line = '.' . $line;
+            }
+            fwrite($socket, $line . "\r\n");
+        }
+
+        // QUIT
+        fwrite($socket, ".\r\n");
+        $response = fgets($socket, 512);
+        if (strpos($response, '250') === false) {
+            fclose($socket);
+            echo "[EMAIL] Message rejected: {$response}\n";
+            return false;
+        }
+
+        fwrite($socket, "QUIT\r\n");
+        fclose($socket);
+
+        echo "[EMAIL] Successfully sent to {$to}\n";
+        return true;
+
+    } catch (Throwable $e) {
+        echo "[EMAIL] Exception: " . $e->getMessage() . "\n";
+        return false;
+    }
+}
+
+
 for ($i = 0; $i < $BATCH; $i++) {
     $id = 0;
 
@@ -451,6 +706,26 @@ for ($i = 0; $i < $BATCH; $i++) {
 
         echo "Row #{$id} READY TO PAY: stored BOLT11 invoice for {$REWARD_SATS} sats\n";
 
+        // ============================================================
+        // 📧 SEND EMAIL NOTIFICATION - Ready to Pay
+        // ============================================================
+        // To DISABLE email notifications, set $EMAIL_ENABLED = false 
+        // in config.local.php or comment out this function call below.
+        // Email is sent asynchronously and does NOT block processing.
+        // ============================================================
+        send_claim_email(
+            $EMAIL_ADMIN,
+            $lnurl,
+            $domain,
+            $REWARD_SATS,
+            'ready_to_pay',
+            null,
+            null,
+            $bolt11,
+            null
+        );
+        // ============================================================
+
         // --- Step C: Pay bolt11 invoice ---
         /* 
          ********** Manual at moment - uncomment to auto-pay **********
@@ -476,6 +751,26 @@ for ($i = 0; $i < $BATCH; $i++) {
             ':ref'  => (string)$pay['ref'],
             ':id'   => $id,
         ]);
+
+        // ============================================================
+        // 📧 SEND EMAIL NOTIFICATION - Payment Successful
+        // ============================================================
+        // To DISABLE email notifications, set $EMAIL_ENABLED = false 
+        // in config.local.php or comment out this function call below.
+        // Email is sent asynchronously and does NOT block processing.
+        // ============================================================
+        send_claim_email(
+            $EMAIL_ADMIN,
+            $lnurl,
+            $domain,
+            $REWARD_SATS,
+            'paid',
+            (string)$pay['ref'],
+            null,
+            $bolt11,
+            (string)$pay['ref']
+        );
+        // ============================================================
 
         echo "Row #{$id} PAID: {$REWARD_SATS} sats, ref=" . $pay['ref'] . "\n";
         */
