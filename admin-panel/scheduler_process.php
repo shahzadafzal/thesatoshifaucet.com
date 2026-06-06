@@ -429,13 +429,15 @@ function send_claim_email(
         // Build email subject and body
         $subject = "[TheSatoshiFaucet] New Claim Request - " . ($status === 'paid' ? '✅ PAID' : '⏳ PROCESSING');
         
+        $__TS = date('Y-m-d H:i:s');
+
         $body = <<<EOT
 =============================================================
          SATOSHI FAUCET - CLAIM NOTIFICATION
 =============================================================
 
 TRANSACTION STATUS: {$status}
-Timestamp: {$__TS = date('Y-m-d H:i:s')} UTC
+Timestamp: {$__TS} UTC
 
 =============================================================
 RECEIVER DETAILS
