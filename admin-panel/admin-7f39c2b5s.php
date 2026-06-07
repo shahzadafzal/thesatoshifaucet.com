@@ -687,7 +687,11 @@ $claims = $claimsStmt->fetchAll();
                   <span class="tiny">—</span>
                 <?php endif; ?>
               </td>
-              <td><?php echo htmlspecialchars($c['ip_address'], ENT_QUOTES, 'UTF-8'); ?></td>
+              <td>
+                
+                <span><?php echo htmlspecialchars($c['ip_address'], ENT_QUOTES, 'UTF-8'); ?></span>
+                <span class="tiny"><?php echo $c['receiver_domain']; ?></span>
+              </td>
               <td>
                 <div>Req: <?php echo number_format((int)$c['sats_requested']); ?> sats</div>
                 <div>Sent: <?php echo number_format((int)$c['sats_sent']); ?> sats</div>
@@ -723,7 +727,30 @@ $claims = $claimsStmt->fetchAll();
                   <button type="submit" name="update_status" value="1" class="update-btn">Update</button>
                 </form>
               </td>
-              <td><?php echo htmlspecialchars($c['tx_reference'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+              <td>
+                <?php
+                $txRef = htmlspecialchars($c['tx_reference'] ?? '', ENT_QUOTES, 'UTF-8');
+
+                if (mb_strlen($txRef) > 30) {
+                ?>
+                    <span
+                        title="<?php echo $txRef; ?>"
+                        style="cursor:pointer"
+                        onclick="this.hidden=true;this.nextElementSibling.hidden=false;this.nextElementSibling.focus();">
+                        <?php echo mb_substr($txRef, 0, 30) . '...'; ?>
+                    </span>
+
+                    <textarea
+                        hidden
+                        readonly
+                        onclick="this.select()"
+                        style="width:250px;height:60px;"><?php echo $txRef; ?></textarea>
+                <?php
+                } else {
+                    echo $txRef;
+                }
+                ?>
+              </td>
               <td><?php echo htmlspecialchars($c['created_at'], ENT_QUOTES, 'UTF-8'); ?></td>
               <td><?php echo htmlspecialchars($c['updated_at'], ENT_QUOTES, 'UTF-8'); ?></td>
               <td><?php echo htmlspecialchars($c['admin_status'] ?? '—', ENT_QUOTES, 'UTF-8'); ?></td>
