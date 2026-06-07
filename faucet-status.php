@@ -127,6 +127,7 @@ lightning faucet status
 ">
 
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script defer src="https://cloud.umami.is/script.js" data-website-id="a95ca758-29c2-4a8c-ae3c-3e2d35505735"></script>
   <!-- Favicon -->
   <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="images//favicon-16x16.png">
