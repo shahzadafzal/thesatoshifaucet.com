@@ -78,7 +78,7 @@ $lastUpdated = $lastUpdatedRow && $lastUpdatedRow['last_updated']
 // --- Recent transactions (anonymised) ---
 $limit = 50;
 $recentStmt = $pdo->prepare("
-    SELECT id, invoice, sats_requested, sats_sent, status, tx_reference, created_at, updated_at
+    SELECT id, invoice, sats_requested, sats_sent, status, tx_reference, created_at, updated_at, reason, receiver_domain
     FROM faucet_claims
     ORDER BY created_at DESC
     LIMIT :lim
@@ -331,6 +331,10 @@ lightning faucet status
       color: #777;
     }
 
+    .tiny-reason {
+      display: block;
+    }
+
     footer {
       margin-top: 26px;
       font-size: 0.8rem;
@@ -454,10 +458,18 @@ lightning faucet status
             ?>
             <tr>
               <td><?php echo (int)$c['id']; ?></td>
-              <td class="invoice-cell"><?php echo short_invoice($c['invoice']); ?></td>
+              <td class="invoice-cell">
+                <span><?php echo short_invoice($c['invoice']); ?></span>
+                <span class="tiny tiny-reason">
+                    <?php echo htmlspecialchars($c['receiver_domain'], ENT_QUOTES, 'UTF-8'); ?>
+                </span>
+            </td>
               <td>
                 <span class="status-pill <?php echo htmlspecialchars($statusClass, ENT_QUOTES, 'UTF-8'); ?>">
                   <?php echo htmlspecialchars($statusText, ENT_QUOTES, 'UTF-8'); ?>
+                </span>
+                <span class="tiny tiny-reason">
+                    <?php echo htmlspecialchars($c['reason'], ENT_QUOTES, 'UTF-8'); ?>
                 </span>
               </td>
               <td>

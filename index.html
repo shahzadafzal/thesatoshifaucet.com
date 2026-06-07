@@ -447,6 +447,8 @@ earn bitcoin free
 
           if (satsSent > 0 && key === "paid") {
             statusPill.title = satsSent + " sats sent";
+          }  else if ( key === "failed" || key === "blocked") {
+            statusPill.title = item.reason || "Claim was blocked or failed";
           } else if (satsRequested > 0) {
             statusPill.title = satsRequested + " sats requested";
           } else {

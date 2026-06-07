@@ -186,6 +186,7 @@ if (isset($_POST['update_status'])) {
     $status = $_POST['status'] ?? '';
     $satsSent = isset($_POST['sats_sent']) ? (int) $_POST['sats_sent'] : 0;
     $txRef  = $_POST['tx_reference'] ?? '';
+    $reason = $_POST['reason'] ?? '';
 
     if ($satsSent <= 0) {
         $satsSent = 100; // default if none set
@@ -196,7 +197,8 @@ if (isset($_POST['update_status'])) {
             UPDATE faucet_claims
             SET status = :status,
                 sats_sent = :sats_sent,
-                tx_reference = :tx
+                tx_reference = :tx,
+                reason = :reason
             WHERE id = :id
         ");
         $stmt->execute([
@@ -204,6 +206,7 @@ if (isset($_POST['update_status'])) {
             ':sats_sent' => $satsSent,
             ':tx'        => $txRef,
             ':id'        => $id,
+            ':reason'    => $reason,
         ]);
         $updateMessage = "Updated transaction #{$id} to status '{$status}' with sats_sent={$satsSent}.";
     }
@@ -724,6 +727,11 @@ $claims = $claimsStmt->fetchAll();
                          class="tx-input"
                          value="<?php echo htmlspecialchars($c['tx_reference'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" />
                   <span class="reason"><strong>Reason:</strong> <?php echo $c['reason']?></span>
+                  <input type="text"
+                         name="reason"
+                         class="tx-input"
+                         value="<?php echo $c['reason']; ?>" />
+                  
                   <button type="submit" name="update_status" value="1" class="update-btn">Update</button>
                 </form>
               </td>

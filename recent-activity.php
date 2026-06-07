@@ -25,7 +25,7 @@ try {
 $limit = 10;
 
 $stmt = $pdo->prepare("
-    SELECT id, invoice, sats_requested, sats_sent, status, created_at, updated_at
+    SELECT id, invoice, sats_requested, sats_sent, status, created_at, updated_at, reason
     FROM faucet_claims
     ORDER BY created_at DESC
     LIMIT :lim
@@ -75,6 +75,7 @@ foreach ($rows as $r) {
         'satsSent'      => (int) $r['sats_sent'],
         'createdAt'     => $r['created_at'],
         'updatedAt'     => $r['updated_at'],
+        'reason'        => $r['reason'],   
     ];
 }
 
