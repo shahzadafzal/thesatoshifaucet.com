@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Help Keep The Satoshi Faucet Flowing – The Satoshi Faucet</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Support The Satoshi Faucet. Donate Bitcoin via Lightning or on-chain to help keep this faucet flowing." />
+    <script defer src="https://cloud.umami.is/script.js" data-website-id="a95ca758-29c2-4a8c-ae3c-3e2d35505735"></script>
+    <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="images//favicon-16x16.png">
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+    <style>
+        :root {
+            --accent: #c9302c;
+            --accent-dark: #a72824;
+            --border-color: #ddd;
+            --bg-light: #fafafa;
+            --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-main);
+            background: #f4f4f4;
+            color: #222;
+            line-height: 1.6;
+        }
+
+        .page {
+            max-width: 820px;
+            margin: 0 auto;
+            padding: 16px 14px 48px;
+        }
+
+        /* ── Shared site header ── */
+        .site-header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0d1b2a 100%);
+            border-radius: 8px;
+            padding: 18px 22px;
+            margin-bottom: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .site-header-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            text-decoration: none;
+        }
+
+        .site-header-brand img {
+            width: 54px;
+            height: auto;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+        }
+
+        .site-header-brand h1 {
+            font-size: 1.3rem;
+            margin: 0 0 2px;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .site-header-brand .subtitle {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin: 0;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.84rem;
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 5px 12px;
+            transition: background 0.15s;
+            white-space: nowrap;
+        }
+
+        .back-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* ── Page hero ── */
+        .page-hero {
+            margin-bottom: 24px;
+        }
+
+        .page-hero h2 {
+            font-size: 1.7rem;
+            margin: 0 0 4px;
+        }
+
+        .page-hero .sub {
+            font-size: 0.95rem;
+            color: #555;
+        }
+
+        /* ── Cards ── */
+        .card {
+            border: 1px solid var(--border-color);
+            background: #fff;
+            border-radius: 8px;
+            padding: 18px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+        }
+
+        .emoji-header {
+            font-size: 1.5rem;
+            margin-right: 6px;
+        }
+
+        .fact-list {
+            margin: 10px 0 0;
+            padding-left: 20px;
+            font-size: 0.95rem;
+        }
+
+        .fact-list li {
+            margin-bottom: 6px;
+        }
+
+        .highlight {
+            background: #fff3f3;
+            border-left: 4px solid var(--accent);
+            padding: 10px 14px;
+            font-size: 0.9rem;
+            margin: 16px 0;
+            border-radius: 0 6px 6px 0;
+        }
+
+        .donation-option {
+            background: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 14px 16px;
+            margin: 12px 0;
+        }
+
+        .donation-option h3 {
+            margin: 0 0 8px;
+            font-size: 1rem;
+            color: #222;
+        }
+
+        .donation-address {
+            font-family: "SFMono-Regular", Menlo, Monaco, Consolas, "Courier New", monospace;
+            font-size: 0.8rem;
+            background: #fff;
+            padding: 8px 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            word-break: break-all;
+            margin-top: 6px;
+            color: #555;
+        }
+
+        .tiny {
+            font-size: 0.82rem;
+            color: #666;
+        }
+
+        code {
+            font-family: "SFMono-Regular", Menlo, Monaco, Consolas, "Courier New", monospace;
+            font-size: 0.85rem;
+            background: #f5f5f5;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        a {
+            color: #1a0dab;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .thank-you {
+            background: #f0f8f0;
+            border-left: 4px solid #28a745;
+            padding: 12px 14px;
+            font-size: 0.95rem;
+            margin: 16px 0;
+            border-radius: 0 6px 6px 0;
+        }
+
+        footer {
+            margin-top: 28px;
+            font-size: 0.8rem;
+            color: #777;
+            border-top: 1px solid var(--border-color);
+            padding-top: 10px;
+        }
+
+        @media (max-width: 600px) {
+            .site-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+
+        <!-- ===== HEADER ===== -->
+        <header class="site-header">
+            <a href="index.html" class="site-header-brand">
+                <img src="images/tap.png" alt="The Satoshi Faucet" />
+                <div>
+                    <h1>The Satoshi Faucet</h1>
+                    <div class="subtitle">A tribute to the original Bitcoin Faucet</div>
+                </div>
+            </a>
+            <a href="index.html" class="back-link">&larr; Back to Home</a>
+        </header>
+
+        <!-- Page hero -->
+        <div class="page-hero">
+            <h2><span class="emoji-header">🤝</span>I've Got Sats – How Can I Help?</h2>
+            <div class="sub">This faucet is just for fun and nostalgia. If you'd like to help keep thesatoshifaucet.com flowing and keep the Bitcoin legacy alive, consider supporting the project.</div>
+        </div>
+
+        <!-- About the faucet -->
+        <div class="card">
+            <h2><span class="emoji-header">⚡</span>What Is This About?</h2>
+            <p>
+                The Satoshi Faucet is a labor of love—a modern revival of the original Bitcoin Faucet 
+                that helped introduce early adopters to Bitcoin. It's not a money-making machine; it's a 
+                tribute to Bitcoin's roots and a fun way to introduce newcomers to satoshis and Lightning Network.
+            </p>
+            <p>
+                Running a faucet takes resources: server hosting, maintenance, electricity, and time. 
+                If you've enjoyed collecting a few sats here, or you simply believe in keeping the spirit 
+                of Bitcoin distribution alive, community support helps keep this faucet up and running.
+            </p>
+            <div class="thank-you">
+                <strong>Every bit of support helps.</strong> Whether it's a few sats via Lightning or a larger 
+                contribution on-chain, your support means we can keep sharing Bitcoin with the world.
+            </div>
+        </div>
+
+        <!-- How donations help Bitcoin -->
+        <div class="card">
+            <h2><span class="emoji-header">🌱</span>How Your Support Helps Bitcoin Grow</h2>
+            <p>
+                When you help keep this faucet alive, you're investing in Bitcoin adoption and education:
+            </p>
+            <ul class="fact-list">
+                <li><strong>Accessibility:</strong> Faucets introduce new people to Bitcoin and Lightning Network with zero barrier to entry. No KYC, no minimum. Just claim some sats and learn.</li>
+                <li><strong>Lightning Network adoption:</strong> Every claim strengthens the Lightning Network as more people discover how fast and cheap Bitcoin transactions can be.</li>
+                <li><strong>Education & community:</strong> This faucet comes with resources, documentation, and friendly reminders that Bitcoin is peer-to-peer, open, and trustless.</li>
+                <li><strong>Nostalgia & history:</strong> We're preserving the spirit of the original faucet—a piece of Bitcoin history that inspired millions to say "I own Bitcoin" for the first time.</li>
+                <li><strong>Open-source inspiration:</strong> This project is built on open principles. Supporting it encourages others to build more community tools and faucets.</li>
+            </ul>
+        </div>
+
+        <!-- Donation methods -->
+        <div class="card">
+            <h2><span class="emoji-header">💙</span>How You Can Help</h2>
+            <p>Choose whichever method works best for you. All support goes directly toward keeping the faucet running.</p>
+
+            <div class="donation-option">
+                <h3>⚡ Lightning (Fast & Low Cost)</h3>
+                <p>Instant, near-zero fees. Perfect for any amount.</p>
+                <p class="tiny"><strong>Note:</strong> This URL will be updated periodically. Check back here for the current Lightning wallet.</p>
+                <div class="donation-address">
+                    lnurl1dp68gurn8ghj7ampd3kx2ar0veekzar0wd5xjtnrdakj7tnhv4kxctttdehhwm30d3h82unvwqhk5mmzd3jhxumvdamx2desxq5etrcc
+                </div>
+                <p class="tiny">Copy the link above and paste it into a Lightning wallet that supports LNURL or payments links.</p>
+            </div>
+
+            <div class="donation-option">
+                <h3>₿ Bitcoin On-Chain (SegWit / Taproot)</h3>
+                <p>For larger donations or if you prefer on-chain confirmation. Lower fees with SegWit.</p>
+                <div class="donation-address">
+                    bc1q3edrccaqc8dkm76jkjjp7cwdg57qhnx8e5thkg
+                </div>
+                <p class="tiny">Send any amount directly from your Bitcoin wallet. We'll make sure every sat is used wisely.</p>
+            </div>
+        </div>
+
+        <!-- Lightning wallet sponsorships -->
+        <div class="card">
+            <h2><span class="emoji-header">📱</span>Lightning Wallet Sponsorships</h2>
+            <p>
+                Are you building or maintaining a Lightning wallet? We're looking for partners who believe in 
+                making Bitcoin accessible to everyone. If your wallet wants to sponsor The Satoshi Faucet, 
+                we'd love to feature your contribution prominently.
+            </p>
+            
+            <h3 style="margin-top: 16px; margin-bottom: 10px;">What We Offer Sponsors:</h3>
+            <ul class="fact-list">
+                <li><strong>Branded transaction notes:</strong> Every faucet payout will include a note crediting your wallet as a sponsor.</li>
+                <li><strong>Homepage mention:</strong> Your wallet will be featured on thesatoshifaucet.com's main page as a supporter.</li>
+                <li><strong>Dedicated sponsor section:</strong> Links and information about your wallet on this donation page.</li>
+                <li><strong>Community visibility:</strong> Reach new Bitcoin and Lightning users as they discover the faucet.</li>
+                <li><strong>Association with values:</strong> Be part of a project dedicated to Bitcoin education, accessibility, and the spirit of the original faucet.</li>
+            </ul>
+
+            <h3 style="margin-top: 16px; margin-bottom: 10px;">Why Sponsor?</h3>
+            <p>
+                Sponsoring a faucet is a direct way to grow your wallet's user base, demonstrate commitment to 
+                the Bitcoin community, and support open-source values. Every transaction becomes an opportunity 
+                to introduce your wallet to new users in a positive, helpful context.
+            </p>
+
+            <div class="highlight">
+                <strong>Interested in sponsoring?</strong> If you're a Lightning wallet developer or maintainer, 
+                reach out through the main site. We're excited to partner with wallets that share our vision 
+                of making Bitcoin accessible to everyone.
+            </div>
+        </div>
+
+        <!-- How donations support the faucet -->
+        <div class="card">
+            <h2><span class="emoji-header">🔧</span>What Your Support Funds</h2>
+            <ul class="fact-list">
+                <li><strong>Server hosting & infrastructure:</strong> Keeping the faucet online, fast, and reliable 24/7.</li>
+                <li><strong>Domain & SSL certificates:</strong> Maintaining thesatoshifaucet.com as a trustworthy, secure home on the internet.</li>
+                <li><strong>Maintenance & updates:</strong> Security patches, bug fixes, and keeping the faucet current with the latest Bitcoin and Lightning developments.</li>
+                <li><strong>Satoshi payouts:</strong> The sats we send out come from community support. Every contribution extends what we can give back.</li>
+                <li><strong>Education content:</strong> Resources, guides, and documentation to help newcomers understand Bitcoin, Lightning, and self-custody.</li>
+            </ul>
+        </div>
+
+        <!-- Bitcoin fundamentals -->
+        <div class="card">
+            <h2><span class="emoji-header">🪙</span>A Bit About Bitcoin</h2>
+            <p>
+                If you're new to Bitcoin, here's what you should know:
+            </p>
+            <ul class="fact-list">
+                <li><strong>Peer-to-peer digital cash:</strong> Bitcoin lets you send value directly to anyone, anywhere, without a middleman. No bank, no government, no corporation in the middle.</li>
+                <li><strong>Scarce and secure:</strong> Only 21 million bitcoins will ever exist. The network is secured by millions of computers (nodes) running the same rules.</li>
+                <li><strong>Open-source and trustless:</strong> The code is public. You can verify it. You don't need to trust us, a company, or a government—you trust the math and the network.</li>
+                <li><strong>Lightning Network:</strong> Built on top of Bitcoin, Lightning enables near-instant, near-free transactions. This is how faucets like ours can send you sats instantly.</li>
+                <li><strong>Self-custody:</strong> Your Bitcoin is yours. Keep your own keys, keep your own coins. That's the Bitcoin promise.</li>
+            </ul>
+            <p>
+                Want to learn more? Check out <a href="https://www.bitcoin.org" target="_blank">bitcoin.org</a>, 
+                <a href="https://github.com/bitcoin/bitcoin" target="_blank">the Bitcoin GitHub repo</a>, 
+                or explore the <a href="https://lightning.network/" target="_blank">Lightning Network</a>.
+            </p>
+        </div>
+
+        <!-- Closing -->
+        <div class="card">
+            <h2><span class="emoji-header">🙏</span>Thank You</h2>
+            <p>
+                Whether you support the project or just visit, thanks for helping keep the spirit of Bitcoin alive. 
+                Satoshis flow, nodes run, and the network grows—one faucet at a time.
+            </p>
+            <p>
+                If you have questions about donations or how this faucet works, feel free to explore 
+                <a href="index.html">the main site</a> or check out our <a href="dear-hackers.html">technical information page</a>.
+            </p>
+        </div>
+
+        <footer>
+            The Satoshi Faucet is a community project inspired by the original Bitcoin Faucet (2010).
+            <br />
+            Bitcoin is for everyone. May your sats multiply and your keys stay safe.
+        </footer>
+
+    </div>
+</body>
+
+</html>
