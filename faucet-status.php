@@ -491,6 +491,11 @@ lightning faucet status
 
     <footer>
       This status page is informational only. The faucet’s sending logic runs offline and independently of this web server.
+      <br />
+          <a href="faucet-status.php" style="font-size:0.85rem;">View faucet status &amp; recent activity</a>
+          | <a href="dear-hackers.html" style="font-size:0.8rem;">A friendly message to hackers</a>
+          | <a href="contact.html" style="font-size:0.8rem;">Contact us</a>
+          | <a href="support.html" style="font-size:0.8rem;">☕ Support the faucet</a>
     </footer>
   </div>
 </body>
