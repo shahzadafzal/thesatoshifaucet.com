@@ -356,14 +356,14 @@ lightning faucet status
   <div class="page">
     <!-- ===== HEADER ===== -->
     <header class="site-header">
-      <a href="index.html" class="site-header-brand">
+      <a href="./" class="site-header-brand">
         <img src="images/tap.png" alt="The Satoshi Faucet" />
         <div>
           <h1>The Satoshi Faucet</h1>
           <div class="subtitle">A tribute to the original Bitcoin Faucet</div>
         </div>
       </a>
-      <a href="index.html" class="back-link">&larr; Back to Home</a>
+      <a href="./" class="back-link">&larr; Back to Home</a>
     </header>
 
     <!-- Page title -->
@@ -492,10 +492,10 @@ lightning faucet status
     <footer>
       This status page is informational only. The faucet’s sending logic runs offline and independently of this web server.
       <br />
-          <a href="faucet-status.php" style="font-size:0.85rem;">View faucet status &amp; recent activity</a>
-          | <a href="dear-hackers.html" style="font-size:0.8rem;">A friendly message to hackers</a>
-          | <a href="contact.html" style="font-size:0.8rem;">Contact us</a>
-          | <a href="support.html" style="font-size:0.8rem;">☕ Support the faucet</a>
+          <a href="faucet-status" style="font-size:0.85rem;">View faucet status &amp; recent activity</a>
+          | <a href="dear-hackers" style="font-size:0.8rem;">A friendly message to hackers</a>
+          | <a href="contact" style="font-size:0.8rem;">Contact us</a>
+          | <a href="support" style="font-size:0.8rem;">☕ Support the faucet</a>
     </footer>
   </div>
 </body>

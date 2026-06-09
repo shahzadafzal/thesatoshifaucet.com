@@ -1,0 +1,29 @@
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|htm)$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires "Wed, 11 Jan 1984 05:00:00 GMT"
+  </FilesMatch>
+</IfModule>
+
+
+RewriteEngine On
+
+# Redirect index.html -> /
+RewriteRule ^index\.html$ / [R=301,L]
+
+# Redirect faucet-status.php -> /faucet-status
+RewriteCond %{THE_REQUEST} \s/+faucet-status\.php[\s?]
+RewriteRule ^faucet-status\.php$ /faucet-status [R=301,L]
+
+# Pretty URL for faucet-status
+RewriteRule ^faucet-status/?$ faucet-status.php [L]
+
+# Redirect .html URLs -> extensionless URLs
+RewriteCond %{THE_REQUEST} \s/+(.+?)\.html[\s?]
+RewriteRule ^(.+)\.html$ /$1 [R=301,L]
+
+# Internally serve .html files
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}.html -f
+RewriteRule ^([^/]+)/?$ $1.html [L]
