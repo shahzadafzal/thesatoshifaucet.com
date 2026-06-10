@@ -125,6 +125,19 @@ curl_setopt_array($ch, [
     CURLOPT_USERAGENT      => 'TheSatoshiFaucet/1.0',
 ]);
 $response = curl_exec($ch);
+
+//Google recaptcha log disabled
+// if ($response) {
+//     file_put_contents(
+//         __DIR__ . '/recaptcha-debug.log',
+//         "\n--------------------------------------------------\n" .
+//         date('c') .
+//         ' IP=' . $userIp .
+//         ' RESPONSE=' . $response . PHP_EOL,
+//         FILE_APPEND
+//     );
+// }
+
 curl_close($ch);
 $data = $response ? json_decode($response, true) : null;
 
