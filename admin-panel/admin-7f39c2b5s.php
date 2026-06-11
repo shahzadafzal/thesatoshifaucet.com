@@ -586,9 +586,11 @@ $claims = $claimsStmt->fetchAll();
         <h1>Faucet Admin</h1>
         <div class="subtitle">Manage transaction statuses, sats_sent, and invoices.</div>
       </div>
-      <form method="post" class="logout-form">
-        <button type="submit" name="logout" value="1">Logout</button>
-      </form>
+      <div style="display:flex; gap:10px; align-items:center;">        
+        <form method="post" class="logout-form">
+          <button type="submit" name="logout" value="1">Logout</button>
+        </form>
+      </div>
     </header>
 
     <?php if ($updateMessage): ?>

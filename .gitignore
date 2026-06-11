@@ -6,6 +6,7 @@ dist/
 build/
 backup/
 backups/
+admin-panel/manual-payments/
 .env
 *.log
 .DS_Store

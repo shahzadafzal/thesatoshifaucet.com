@@ -351,6 +351,89 @@ lightning faucet status
       }
     }
   </style>
+<style>
+  @media (max-width: 900px) {
+  .recent-activity-table thead {
+    display: none;
+  }
+
+  .recent-activity-table,
+  .recent-activity-table tbody {
+    display: block;
+  }
+
+  .recent-activity-table tbody {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 8px;
+  }
+
+  .recent-activity-table tr {
+    display: block;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-left: 5px solid #ddd;
+    border-radius: 7px;
+    padding: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.08);
+  }
+
+  .recent-activity-table td {
+    display: block;
+    border: 0;
+    padding: 2px 0;
+    font-size: .78rem;
+    background: transparent !important;
+  }
+
+  .recent-activity-table td:nth-child(1)::before {
+    content: "#";
+  }
+
+  .recent-activity-table td:nth-child(2) {
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #666;
+  }
+
+  .recent-activity-table td:nth-child(3) {
+    margin-top: 6px;
+  }
+
+  .recent-activity-table td:nth-child(4) {
+    margin-top: 5px;
+    font-weight: 600;
+  }
+
+  .recent-activity-table td:nth-child(5),
+  .recent-activity-table td:nth-child(6) {
+    display: none;
+  }
+
+  .recent-activity-table tr:has(.status-paid) {
+    border-left-color: #6cc26c;
+  }
+
+  .recent-activity-table tr:has(.status-pending) {
+    border-left-color: #f0cf80;
+  }
+
+  .recent-activity-table tr:has(.status-processing) {
+    border-left-color: #7ab7ff;
+  }
+
+  .recent-activity-table tr:has(.status-failed) {
+    border-left-color: #f0a3a3;
+  }
+
+  .recent-activity-table tr:has(.status-blocked) {
+    border-left-color: #aaa;
+  }
+}
+</style>
+
 </head>
 <body>
   <div class="page">
@@ -440,7 +523,7 @@ lightning faucet status
       <?php if (!$recentClaims): ?>
         <p class="tiny">No requests have been recorded yet.</p>
       <?php else: ?>
-        <table>
+        <table class="recent-activity-table">
           <thead>
             <tr>
               <th>ID</th>
@@ -498,5 +581,6 @@ lightning faucet status
           | <a href="support" style="font-size:0.8rem;">☕ Support the faucet</a>
     </footer>
   </div>
+</script>
 </body>
 </html>
