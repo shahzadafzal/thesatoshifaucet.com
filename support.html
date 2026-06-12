@@ -122,6 +122,48 @@
             box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
         }
 
+        .meter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+
+        .meter-card {
+            border-radius: 16px;
+            padding: 16px 18px;
+            color: #fff;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .meter-card h3 {
+            margin: 0 0 8px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
+
+        .meter-card .metric-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            line-height: 1.1;
+        }
+
+        .meter-card .metric-note {
+            font-size: 0.82rem;
+            opacity: 0.86;
+            margin-top: 8px;
+        }
+
+        .meter-card.blue { background: linear-gradient(135deg, #2065d1, #2a7bfd); }
+        .meter-card.green { background: linear-gradient(135deg, #109e64, #2ed27f); }
+        .meter-card.red { background: linear-gradient(135deg, #d1345b, #ed4f7c); }
+        .meter-card.orange { background: linear-gradient(135deg, #f28b23, #ffaf50); }
+
         h2 {
             margin-top: 0;
             font-size: 1.2rem;
@@ -245,6 +287,30 @@
             <div class="sub">This faucet is just for fun and nostalgia. If you'd like to help keep thesatoshifaucet.com flowing and keep the Bitcoin legacy alive, consider supporting the project.</div>
         </div>
 
+        <!-- Top metric cards -->
+        <div class="meter-grid">
+            <div class="meter-card orange">
+                <h3>Faucet balance</h3>
+                <div class="metric-value" id="balance-sats">— sats</div>
+                <div class="metric-note">Current on-site balance available for claims.</div>
+            </div>
+            <div class="meter-card blue">
+                <h3>Estimated claims remaining</h3>
+                <div class="metric-value" id="estimated-claims">—</div>
+                <div class="metric-note">Estimated claims based on ~100 sats + fees each.</div>
+            </div>
+            <div class="meter-card green">
+                <h3>Total sats paid</h3>
+                <div class="metric-value" id="total-paid">— sats</div>
+                <div class="metric-note">All-time sats sent to recipients.</div>
+            </div>
+            <div class="meter-card red">
+                <h3>Support received</h3>
+                <div class="metric-value" id="support-received">— sats</div>
+                <div class="metric-note">Total funds received by the faucet.</div>
+            </div>
+        </div>
+
         <!-- About the faucet -->
         <div class="card">
             <h2><span class="emoji-header">⚡</span>What Is This About?</h2>
@@ -273,23 +339,61 @@
                 <h3>⚡ Lightning (Fast & Low Cost)</h3>
                 <p>Instant, near-zero fees. Perfect for any amount.</p>
                 <p class="tiny"><strong>Note:</strong> This URL will be updated periodically. Check back here for the current Lightning wallet.</p>
-                <div class="donation-address">
-                    lnurl1dp68gurn8ghj7ampd3kx2ar0veekzar0wd5xjtnrdakj7tnhv4kxctttdehhwm30d3h82unvwqhk5mmzd3jhxumvdamx2desxq5etrcc
+                <div class="donation-address" id="lnurl-block">
+                    <div class="address-row-flex">
+                        <div class="address-text" id="lnurl-address">lnurl1dp68gurn8ghj7ampd3kx2ar0veekzar0wd5xjtnrdakj7tnhv4kxctttdehhwm30d3h82unvwqhk5mmzd3jhxumvdamx2desxq5etrcc</div>
+                        <div class="address-actions">
+                            <button class="copy-btn" data-target="lnurl-address">Copy</button>
+                        </div>
+                    </div>
+                    <div class="qr-wrap">
+                        <div id="lnurl-qr" class="qr-canvas" aria-hidden="true"></div>
+                        <div class="qr-label tiny">Scan to open in a wallet</div>
+                    </div>
                 </div>
-                <p class="tiny">Copy the address above and paste it into a Lightning wallet that supports LNURL or payments links.</p>
+                <p class="tiny">Copy the address above and paste it into a Lightning wallet that supports LNURL or scan the QR code.</p>
             </div>
 
             <div class="donation-option">
                 <h3>₿ Bitcoin On-Chain (SegWit / Taproot)</h3>
                 <p>For larger amounts or if you prefer on-chain confirmation. Lower fees with SegWit.</p>
-                <div class="donation-address">
-                    bc1q3edrccaqc8dkm76jkjjp7cwdg57qhnx8e5thkg
+                <div class="donation-address" id="btc-block">
+                    <div class="address-row-flex">
+                        <div class="address-text" id="btc-address">bc1q3edrccaqc8dkm76jkjjp7cwdg57qhnx8e5thkg</div>
+                        <div class="address-actions">
+                            <button class="copy-btn" data-target="btc-address">Copy</button>
+                        </div>
+                    </div>
+                    <div class="qr-wrap">
+                        <div id="btc-qr" class="qr-canvas" aria-hidden="true"></div>
+                        <div class="qr-label tiny">Scan to pay on-chain</div>
+                    </div>
                 </div>
-                <p class="tiny">Send any amount directly from your Bitcoin wallet. Let's keep the faucet running and giving back to the community.</p>
+                <p class="tiny">Send any amount directly from your Bitcoin wallet or scan the QR code.</p>
             </div>
         </div>
 
-        <!-- How to help Bitcoin -->
+        
+        <div class="card">
+            <h2><span class="emoji-header">📊</span>Support the Faucet</h2>
+            <p class="tiny">See how your support translate into claims and how your contribution helps others.</p>
+            <div class="highlight" style="margin-top:12px;">
+                Every 10,000 sats keeps the faucet running for about 97 more people.
+            </div>
+            <h3 style="margin-top:12px;">Support amount</h3>
+            <table aria-label="Support table">
+                <thead>
+                    <tr><th>Support amount</th><th>Meaning</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>10,000 sats</td><td>funds ~97 claims</td></tr>
+                    <tr><td>25,000 sats</td><td>funds ~240 claims</td></tr>
+                    <tr><td>50,000 sats</td><td>funds ~480 claims</td></tr>
+                    <tr><td>100,000 sats</td><td>funds ~970 claims</td></tr>
+                </tbody>
+            </table>
+        </div>
+
         <div class="card">
             <h2><span class="emoji-header">🌱</span>How Your Support Helps Bitcoin Grow</h2>
             <p>
@@ -338,7 +442,7 @@
             </div>
         </div>
 
-        <!-- How donations support the faucet -->
+        <!-- How support the faucet -->
         <div class="card" style="display: none;">
             <h2><span class="emoji-header">🔧</span>What Your Support Funds</h2>
             <ul class="fact-list">
@@ -392,6 +496,114 @@
         </footer>
 
     </div>
+    <style>
+        .address-row-flex { display:flex; gap:12px; align-items:center; justify-content:space-between; }
+        .address-text { flex:1; font-family: "SFMono-Regular", Menlo, Monaco, monospace; font-size:0.9rem; color:#222; }
+        .address-actions { white-space:nowrap; margin-left:12px; }
+        .copy-btn { background:#1a73e8; color:#fff; border:none; padding:7px 10px; border-radius:6px; cursor:pointer; font-size:0.9rem; }
+        .copy-btn:active { transform:translateY(1px); }
+        .qr-wrap { margin-top:10px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+        .qr-canvas { width:160px; height:160px; background:#fff; padding:8px; border:1px solid #e6e6e6; border-radius:8px; }
+        .qr-label { color:#666; font-size:0.85rem; }
+        @media (max-width:480px) { .qr-canvas { width:120px; height:120px; } }
+    </style>
+
+    <!-- QR code generator and copy helpers -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+        (function(){
+            function makeQR(containerId, text) {
+                const el = document.getElementById(containerId);
+                if (!el || !text) return;
+                // clear previous
+                el.innerHTML = '';
+                try {
+                    new QRCode(el, { text: text, width: el.clientWidth || 160, height: el.clientHeight || 160 });
+                } catch(e) {
+                    el.textContent = text;
+                }
+            }
+
+            function setupCopyButtons() {
+                document.querySelectorAll('.copy-btn').forEach(btn=>{
+                    btn.addEventListener('click', function(){
+                        const targetId = this.getAttribute('data-target');
+                        const src = document.getElementById(targetId);
+                        if (!src) return;
+                        const text = src.textContent.trim();
+                        navigator.clipboard.writeText(text).then(()=>{
+                            const old = this.textContent;
+                            this.textContent = 'Copied';
+                            setTimeout(()=> this.textContent = old, 1500);
+                        }).catch(()=>{
+                            alert('Copy failed. Select and copy manually.');
+                        });
+                    });
+                });
+            }
+
+            function init() {
+                const lnurl = document.getElementById('lnurl-address')?.textContent.trim() || '';
+                const btc = document.getElementById('btc-address')?.textContent.trim() || '';
+                if (lnurl) makeQR('lnurl-qr', lnurl);
+                if (btc) makeQR('btc-qr', btc);
+                setupCopyButtons();
+            }
+
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+            else init();
+        })();
+    </script>
+    <script>
+        (function(){
+            // per-claim costs
+            const MIN_FEE = 3;
+            const MAX_FEE = 10;
+            const BASE_PAYOUT = 100;
+
+            function fmt(n) { return typeof n === 'number' ? n.toLocaleString() : n; }
+
+            function updateUI(balance, totals) {
+                const totalPaid = totals.total_sent || 0;
+                const supportReceived = 0;//(balance || 0) + totalPaid;
+
+                // estimate claims remaining (min/max and avg)
+                const minCost = BASE_PAYOUT + MIN_FEE;
+                const maxCost = BASE_PAYOUT + MAX_FEE;
+                const avgCost = Math.round((minCost + maxCost) / 2);
+                const estMin = Math.floor((balance || 0) / maxCost);
+                const estMax = Math.floor((balance || 0) / minCost);
+                const estAvg = Math.floor((balance || 0) / avgCost);
+
+                document.getElementById('balance-sats').textContent = fmt(balance) + ' sats';
+                document.getElementById('total-paid').textContent = fmt(totalPaid) + ' sats';
+                document.getElementById('support-received').textContent = fmt(supportReceived) + ' sats';
+
+                // show approx as single number with note
+                const estEl = document.getElementById('estimated-claims');
+                estEl.textContent = '~' + fmt(estAvg) ;//+ ' (' + fmt(estMin) + '-' + fmt(estMax) + ')';
+            }
+
+            function fetchAndUpdate() {
+                Promise.all([
+                    fetch('balance.php').then(r=>r.ok? r.json() : Promise.reject('bal')),
+                    fetch('status.json.php').then(r=>r.ok? r.json() : Promise.reject('stat')),
+                ]).then(([bal, stat]) => {
+                    const balance = bal && bal.balance ? parseInt(bal.balance,10) : 0;
+                    const totals = stat && stat.ok ? stat : { total_sent: 0 };
+                    updateUI(balance, totals);
+                }).catch(err=>{
+                    console.error('Status load failed', err);
+                });
+            }
+
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fetchAndUpdate);
+            else fetchAndUpdate();
+
+            // refresh every 5 minutes
+            setInterval(fetchAndUpdate, 5 * 60 * 1000);
+        })();
+    </script>
 </body>
 
 </html>

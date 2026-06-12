@@ -49,7 +49,7 @@ earn bitcoin free
   <link rel="icon" type="image/png" sizes="16x16" href="images//favicon-16x16.png">
   <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
   
-  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+  <!-- CAPTCHA script is loaded dynamically based on server config -->
   <!-- QR code reader for camera scan + image upload -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script defer src="https://cloud.umami.is/script.js" data-website-id="a95ca758-29c2-4a8c-ae3c-3e2d35505735"></script>
@@ -88,18 +88,17 @@ earn bitcoin free
           </p>
 
           <p class="faucet-panel-text">
-            Just complete the reCAPTCHA, enter your LNURL (or scan your QR code),
+            Just complete the CAPTCHA, enter your LNURL (or scan your QR code),
             and press <strong>Get Some!</strong>
           </p>
 
           <form id="faucet-form" autocomplete="off">
             <div class="captcha-wrap">
               <div class="captcha-note">
-                We offer free sats to all intelligent life &mdash; but not automated bots.<br>
-                Please prove you're not a robot by completing the reCAPTCHA below.
+                We offer free sats to all intelligent life — but not automated bots.<br>
+                Please prove you're not a robot by completing the CAPTCHA below.
               </div>
-              <!-- Google reCAPTCHA -->
-              <div class="g-recaptcha" data-sitekey="6LfFKSEsAAAAAKBqHR-UMEAQppJZ58vzoY4R_qb_"></div>
+              <div id="captcha-placeholder"></div>
               <p class="captcha-note">
                 (No tracking, no wallet keys, just a quick human check.)
               </p>
@@ -255,15 +254,105 @@ earn bitcoin free
   </div><!-- /.page -->
 
   <!-- ===== SCRIPTS ===== -->
-  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 
   <script>
     (function () {
       const form = document.getElementById("faucet-form");
       const addressEl = document.getElementById("address-input");
       const claimSourceEl = document.getElementById("claim-source");
+      const captchaPlaceholder = document.getElementById("captcha-placeholder");
       const statusEl = document.getElementById("status-message");
       const getBtn = document.getElementById("get-button");
+      let claimSource = 'paste';
+      let captchaProvider = 'hcaptcha';
+      let captchaWidgetId = null;
+      let captchaConfigLoaded = false;
+
+      function loadScript(src) {
+        return new Promise((resolve, reject) => {
+          if (document.querySelector('script[src="' + src + '"]')) {
+            resolve();
+            return;
+          }
+          const script = document.createElement('script');
+          script.src = src;
+          script.async = true;
+          script.defer = true;
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+      }
+
+      function renderCaptcha(provider, siteKey) {
+        captchaProvider = provider;
+        captchaPlaceholder.innerHTML = '';
+        captchaWidgetId = null;
+
+        if (!siteKey) {
+          captchaPlaceholder.innerHTML = '<div class="captcha-error">Captcha provider configured but site key is missing.</div>';
+          return;
+        }
+
+        if (provider === 'hcaptcha') {
+          loadScript('https://js.hcaptcha.com/1/api.js')
+            .then(() => {
+              if (window.hcaptcha) {
+                captchaWidgetId = window.hcaptcha.render(captchaPlaceholder, { sitekey: siteKey });
+                captchaConfigLoaded = true;
+              }
+            })
+            .catch(() => {
+              captchaPlaceholder.innerHTML = '<div class="captcha-error">Unable to load hCaptcha.</div>';
+            });
+        } else {
+          loadScript('https://www.google.com/recaptcha/api.js?render=explicit')
+            .then(() => {
+              if (window.grecaptcha) {
+                captchaWidgetId = window.grecaptcha.render(captchaPlaceholder, { sitekey: siteKey });
+                captchaConfigLoaded = true;
+              }
+            })
+            .catch(() => {
+              captchaPlaceholder.innerHTML = '<div class="captcha-error">Unable to load reCAPTCHA.</div>';
+            });
+        }
+      }
+
+      function getCaptchaResponse() {
+        if (captchaProvider === 'hcaptcha' && window.hcaptcha) {
+          return window.hcaptcha.getResponse(captchaWidgetId);
+        }
+        if (window.grecaptcha) {
+          return window.grecaptcha.getResponse(captchaWidgetId);
+        }
+        return '';
+      }
+
+      function resetCaptcha() {
+        if (captchaProvider === 'hcaptcha' && window.hcaptcha) {
+          window.hcaptcha.reset(captchaWidgetId);
+        } else if (window.grecaptcha) {
+          window.grecaptcha.reset(captchaWidgetId);
+        }
+      }
+
+      function loadCaptchaConfig() {
+        fetch('claim.php?captcha_config=1')
+          .then(response => response.ok ? response.json() : Promise.reject(response.statusText))
+          .then(config => {
+            if (config && config.provider && config.siteKey) {
+              renderCaptcha(config.provider, config.siteKey);
+            } else {
+              captchaPlaceholder.innerHTML = '<div class="captcha-error">Captcha configuration is missing.</div>';
+            }
+          })
+          .catch(() => {
+            captchaPlaceholder.innerHTML = '<div class="captcha-error">Unable to load captcha configuration.</div>';
+          });
+      }
+
+      loadCaptchaConfig();
 
       form.addEventListener("submit", function (e) {
         e.preventDefault();
@@ -277,12 +366,15 @@ earn bitcoin free
           return;
         }
 
-        let captchaResponse = "";
-        if (window.grecaptcha) {
-          captchaResponse = grecaptcha.getResponse();
+        if (!captchaConfigLoaded) {
+          statusEl.textContent = "Captcha is still loading. Please wait a moment.";
+          statusEl.classList.add("status-error");
+          return;
         }
+
+        const captchaResponse = getCaptchaResponse();
         if (!captchaResponse) {
-          statusEl.textContent = "Please complete the reCAPTCHA before claiming.";
+          statusEl.textContent = "Please complete the CAPTCHA before claiming.";
           statusEl.classList.add("status-error");
           return;
         }
@@ -292,7 +384,11 @@ earn bitcoin free
         const formData = new FormData();
         formData.append("address", invoice);
         formData.append("claim_source", claimSourceEl.value || 'paste');
-        formData.append("g-recaptcha-response", captchaResponse);
+        if (captchaProvider === 'hcaptcha') {
+          formData.append("h-captcha-response", captchaResponse);
+        } else {
+          formData.append("g-recaptcha-response", captchaResponse);
+        }
 
         fetch("claim.php", {
           method: "POST",
@@ -322,9 +418,7 @@ earn bitcoin free
           })
           .finally(() => {
             getBtn.disabled = false;
-            if (window.grecaptcha) {
-              grecaptcha.reset();
-            }
+            resetCaptcha();
           });
       });
     })();

@@ -12,6 +12,21 @@ if (!file_exists($configFile)) {
 }
 require $configFile;
 
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['captcha_config'])) {
+    $provider = isset($CAPTCHA_PROVIDER) ? strtolower($CAPTCHA_PROVIDER) : 'hcaptcha';
+    if ($provider === 'google') {
+        $siteKey = $RECAPTCHA_SITE_KEY ?? '';
+    } else {
+        $provider = 'hcaptcha';
+        $siteKey = $HCAPTCHA_SITE_KEY ?? '';
+    }
+    echo json_encode([
+        'provider' => $provider,
+        'siteKey'  => $siteKey,
+    ]);
+    exit;
+}
+
 // --- helper: connect to DB ---
 function get_pdo(): PDO {
     global $DB_HOST,$DB_NAME,$DB_USER,$DB_PASS;
@@ -62,7 +77,7 @@ function classify_lightning_target(string $value): ?array {
 // --- read POST data from JS ---
 $invoice      = isset($_POST['address']) ? trim($_POST['address']) : '';  // BOLT11 invoice
 $claimSource  = isset($_POST['claim_source']) ? trim($_POST['claim_source']) : 'paste';
-$captchaToken = $_POST['g-recaptcha-response'] ?? '';
+$captchaToken = $_POST['g-recaptcha-response'] ?? $_POST['h-captcha-response'] ?? '';
 $userIp       = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 $userAgent    = $_SERVER['HTTP_USER_AGENT'] ?? '';
 
@@ -104,14 +119,23 @@ if (!preg_match('/^lnurl1[02-9ac-hj-np-z]+$/', $invLower)) {
 }
 
 if ($captchaToken === '') {
-    echo json_encode(['status'=>'error','message'=>'Please complete the reCAPTCHA.']); exit;
+    echo json_encode(['status'=>'error','message'=>'Please complete the CAPTCHA.']); exit;
 }
 
-// --- verify reCAPTCHA via cURL (faster, 5s timeout) ---
+$captchaProvider = isset($CAPTCHA_PROVIDER) ? strtolower($CAPTCHA_PROVIDER) : 'hcaptcha';
+if ($captchaProvider === 'google') {
+    $verifyUrl = 'https://www.google.com/recaptcha/api/siteverify';
+    $secret = $RECAPTCHA_SECRET_KEY ?? '';
+} else {
+    $captchaProvider = 'hcaptcha';
+    $verifyUrl = 'https://hcaptcha.com/siteverify';
+    $secret = $HCAPTCHA_SECRET_KEY ?? '';
+}
+
+// --- verify CAPTCHA via cURL (faster, 5s timeout) ---
 // This runs synchronously BEFORE queuing — bots are rejected instantly.
-$verifyUrl = 'https://www.google.com/recaptcha/api/siteverify';
 $payload   = http_build_query([
-    'secret'   => $RECAPTCHA_SECRET_KEY,
+    'secret'   => $secret,
     'response' => $captchaToken,
     'remoteip' => $userIp,
 ]);
@@ -143,7 +167,7 @@ curl_close($ch);
 $data = $response ? json_decode($response, true) : null;
 
 if (!$data || empty($data['success'])) {
-    echo json_encode(['status'=>'error','message'=>'reCAPTCHA verification failed. Please try again.']); exit;
+    echo json_encode(['status'=>'error','message'=>'CAPTCHA verification failed. Please try again.']); exit;
 }
 
 // --- DB logic ---
