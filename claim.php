@@ -61,6 +61,7 @@ function classify_lightning_target(string $value): ?array {
 
 // --- read POST data from JS ---
 $invoice      = isset($_POST['address']) ? trim($_POST['address']) : '';  // BOLT11 invoice
+$claimSource  = isset($_POST['claim_source']) ? trim($_POST['claim_source']) : 'paste';
 $captchaToken = $_POST['g-recaptcha-response'] ?? '';
 $userIp       = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 $userAgent    = $_SERVER['HTTP_USER_AGENT'] ?? '';
@@ -149,9 +150,40 @@ if (!$data || empty($data['success'])) {
 try {
     $pdo = get_pdo();
 
-    // new request -> insert as pending
-    $reward = 100; // sats (or 1000 if you want)
     
+    // Check processing queue size and refuse new claims when full.
+    // The limit is configurable via $MAX_PROCESSING_CLAIMS in config.local.php.
+    $limit = isset($MAX_PROCESSING_CLAIMS) ? (int)$MAX_PROCESSING_CLAIMS : 50;
+    try {
+        $cntStmt = $pdo->prepare("SELECT COUNT(*) AS c FROM faucet_claims WHERE status = 'processing'");
+        $cntStmt->execute();
+        $cntRow = $cntStmt->fetch();
+        $processingCount = $cntRow ? (int)$cntRow['c'] : 0;
+    } catch (Throwable $e) {
+        // If the count fails for any reason, be conservative and allow the claim to proceed.
+        $processingCount = 0;
+    }
+
+    if ($processingCount >= $limit) {
+        echo json_encode([
+            'status' => 'queue_full',
+            'message' => 'Queue is full — please try again in a little while. Thank you for your patience.'
+        ]);
+        exit;
+    }
+
+    // Use configurable reward from config.local.php; fall back to 100 sats.
+    $reward = isset($REWARD_SATS) ? (int) $REWARD_SATS : 100;
+    if ($reward <= 0) {
+        $reward = 100;
+    }
+
+    $claimSource = strtolower($claimSource);
+    $allowedSources = ['paste', 'scan', 'upload'];
+    if (!in_array($claimSource, $allowedSources, true)) {
+        $claimSource = 'paste';
+    }
+
     // check if this invoice OR IP already has a record
     $check = $pdo->prepare("
         SELECT invoice, ip_address, status, sats_sent, created_at
@@ -201,15 +233,16 @@ try {
     
 
     $ins = $pdo->prepare("
-        INSERT INTO faucet_claims (invoice, ip_address, sats_requested, status, user_agent, payment_type)
-        VALUES (:inv, :ip, :sats, 'pending', :ua, 'lnurl')
+        INSERT INTO faucet_claims (invoice, ip_address, sats_requested, status, user_agent, payment_type, claim_source)
+        VALUES (:inv, :ip, :sats, 'pending', :ua, 'lnurl', :source)
     ");
 
     $ins->execute([
-        ':inv'  => $invoice,
-        ':ip'   => $userIp,
-        ':sats' => $reward,
-        ':ua'   => $userAgent,
+        ':inv'    => $invoice,
+        ':ip'     => $userIp,
+        ':sats'   => $reward,
+        ':ua'     => $userAgent,
+        ':source' => $claimSource,
     ]);
 
     // Deduct balance

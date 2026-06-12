@@ -108,6 +108,7 @@ earn bitcoin free
             <div class="address-row">
               <label for="address-input">Your LNURL-pay address:</label>
               <input id="address-input" name="address" type="text" placeholder="LNURL (starting with lnurl1...)" />
+              <input id="claim-source" name="claim_source" type="hidden" value="paste" />
               <button type="submit" class="btn-primary" id="get-button">Get Some!</button>
             </div>
 
@@ -242,7 +243,7 @@ earn bitcoin free
           <h2>Other Sites</h2>
           <ul>
             <li><a href="https://bitcointalk.org/index.php?topic=183.msg1488#msg1488" target="_blank">Gavin Andresen's bitcoin faucet</a></strong></li>
-            <li><a href="https://bitcointalk.org" target="_blank" rel="noopener noreferrer">bitcointalk.org</a></li>
+            <li><a href=https://bitcointalk.org/index.php?topic=5585459.0" target="_blank" rel="noopener noreferrer">bitcointalk.org</a></li>
             <li><a href="https://bitcoin.org" target="_blank" rel="noopener noreferrer">bitcoin.org</a></li>
             <li><a href="https://en.bitcoin.it/wiki/Main_Page" target="_blank" rel="noopener noreferrer">Bitcoin
                 Wiki</a></li>
@@ -260,6 +261,7 @@ earn bitcoin free
     (function () {
       const form = document.getElementById("faucet-form");
       const addressEl = document.getElementById("address-input");
+      const claimSourceEl = document.getElementById("claim-source");
       const statusEl = document.getElementById("status-message");
       const getBtn = document.getElementById("get-button");
 
@@ -289,6 +291,7 @@ earn bitcoin free
 
         const formData = new FormData();
         formData.append("address", invoice);
+        formData.append("claim_source", claimSourceEl.value || 'paste');
         formData.append("g-recaptcha-response", captchaResponse);
 
         fetch("claim.php", {
@@ -306,7 +309,9 @@ earn bitcoin free
               statusEl.classList.add("status-error");
             } else {
               statusEl.textContent = data.message || "Something went wrong. Please try again.";
-              statusEl.textContent += " (Error: " + data.debug + ")";
+              if (data.debug) {
+                statusEl.textContent += " (Error: " + data.debug + ")";
+              }
               statusEl.classList.add("status-error");
             }
           })
@@ -329,6 +334,7 @@ earn bitcoin free
   <script>
     (function () {
       const addressEl = document.getElementById('address-input');
+      const claimSourceEl = document.getElementById('claim-source');
       const confirmStrip = document.getElementById('qr-confirm-strip');
       const decodedText = document.getElementById('qr-decoded-text');
       const qrModal = document.getElementById('qr-modal');
@@ -362,21 +368,37 @@ earn bitcoin free
 
       function closeScanner() {
         qrModal.style.display = 'none';
-        if (html5Qr) {
-          html5Qr.stop().catch(function () { }).finally(function () {
-            html5Qr.clear();
+        if (!html5Qr) {
+          return;
+        }
+        try {
+          const stopResult = html5Qr.stop();
+          if (stopResult && typeof stopResult.then === 'function') {
+            stopResult.catch(function () { }).finally(function () {
+              try { html5Qr.clear(); } catch (e) { }
+              html5Qr = null;
+            });
+          } else {
+            try { html5Qr.clear(); } catch (e) { }
             html5Qr = null;
-          });
+          }
+        } catch (err) {
+          try { html5Qr.clear(); } catch (e) { }
+          html5Qr = null;
         }
       }
 
-      btnCamera.addEventListener('click', openScanner);
+      btnCamera.addEventListener('click', function () {
+        claimSourceEl.value = 'scan';
+        openScanner();
+      });
       btnClose.addEventListener('click', closeScanner);
       qrModal.addEventListener('click', function (e) {
         if (e.target === qrModal) closeScanner();
       });
 
       btnUpload.addEventListener('click', function () {
+        claimSourceEl.value = 'upload';
         fileInput.value = '';
         fileInput.click();
       });
@@ -384,10 +406,25 @@ earn bitcoin free
       fileInput.addEventListener('change', function () {
         const file = fileInput.files[0];
         if (!file) return;
-        Html5Qrcode.scanFile(file, true)
+
+        if (html5Qr) {
+          try {
+            closeScanner();
+          } catch (e) {
+            // ignore scanner close errors, continue with file scan
+          }
+        }
+
+        const scanner = new Html5Qrcode('qr-reader');
+
+        scanner.scanFile(file, true)
           .then(function (result) { onDecoded(result); })
           .catch(function () {
             alert('Could not read a QR code from that image.\nMake sure the image is clear and contains an LNURL QR code.');
+          })
+          .finally(function () {
+            try { scanner.clear(); } catch (e) { }
+            fileInput.value = '';
           });
       });
     })();

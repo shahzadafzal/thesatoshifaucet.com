@@ -34,7 +34,10 @@ if (!file_exists($configFile)) {
 }
 require $configFile;
 
-$REWARD_SATS = 100; // faucet reward
+$REWARD_SATS = isset($REWARD_SATS) ? (int) $REWARD_SATS : 100;
+if ($REWARD_SATS <= 0) {
+    $REWARD_SATS = 100;
+}
 $REWARD_MSAT = $REWARD_SATS * 1000;
 
 date_default_timezone_set('UTC');

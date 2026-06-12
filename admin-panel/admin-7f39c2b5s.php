@@ -45,6 +45,11 @@ try {
     exit;
 }
 
+$DEFAULT_REWARD_SATS = isset($REWARD_SATS) ? (int) $REWARD_SATS : 100;
+if ($DEFAULT_REWARD_SATS <= 0) {
+    $DEFAULT_REWARD_SATS = 100;
+}
+
 // --- Simple login logic ---
 $isLoggedIn = !empty($_SESSION['is_admin']) && $_SESSION['is_admin'] === true;
 $loginError = '';
@@ -182,25 +187,25 @@ if (isset($_GET['filter_last24'])) {
 // --- Handle status + sats_sent + tx_reference update ---
 $updateMessage = '';
 if (isset($_POST['update_status'])) {
-    $id     = isset($_POST['id']) ? (int) $_POST['id'] : 0;
-    $status = $_POST['status'] ?? '';
+    $id      = isset($_POST['id']) ? (int) $_POST['id'] : 0;
+    $status  = $_POST['status'] ?? '';
     $satsSent = isset($_POST['sats_sent']) ? (int) $_POST['sats_sent'] : 0;
-    $txRef  = $_POST['tx_reference'] ?? '';
-    $reason = $_POST['reason'] ?? '';
+    $txRef   = $_POST['tx_reference'] ?? '';
+    $reason  = $_POST['reason'] ?? '';
 
     if ($satsSent <= 0) {
-        $satsSent = 100; // default if none set
+        $satsSent = $DEFAULT_REWARD_SATS; // default if none set
     }
 
-    if ($id > 0 && (in_array($status, $allowedStatuses, true))) {
-        $stmt = $pdo->prepare("
-            UPDATE faucet_claims
-            SET status = :status,
-                sats_sent = :sats_sent,
-                tx_reference = :tx,
-                reason = :reason
-            WHERE id = :id
-        ");
+    if ($id > 0 && in_array($status, $allowedStatuses, true)) {
+        $stmt = $pdo->prepare(
+            "UPDATE faucet_claims
+             SET status = :status,
+                 sats_sent = :sats_sent,
+                 tx_reference = :tx,
+                 reason = :reason
+             WHERE id = :id"
+        );
         $stmt->execute([
             ':status'    => $status,
             ':sats_sent' => $satsSent,
@@ -228,7 +233,7 @@ if ($filterLast24) {
 
 $sql = "
     SELECT id, invoice, ip_address, sats_requested, sats_sent, status, tx_reference, created_at, 
-    updated_at, reason, receiver_domain, admin_status, pay_bolt11
+    updated_at, reason, receiver_domain, admin_status, pay_bolt11, claim_source
     FROM faucet_claims
 ";
 
@@ -693,7 +698,18 @@ $claims = $claimsStmt->fetchAll();
                 <?php endif; ?>
               </td>
               <td>
-                
+                <?php if ($c['claim_source'] == "scan") {?>
+                <span title="Scan QR Code">📷</span>
+                <?php } ?>
+
+                <?php if ($c['claim_source'] == "upload") {?>
+                <span title="Upload QR Code">🖼️</span>
+                <?php } ?>
+
+                <?php if ($c['claim_source'] == "paste") {?>
+                <span title="Copy Paste">✍</span>
+                <?php } ?>
+
                 <span><?php echo htmlspecialchars($c['ip_address'], ENT_QUOTES, 'UTF-8'); ?></span>
                 <span class="tiny"><?php echo $c['receiver_domain']; ?></span>
               </td>
@@ -721,7 +737,7 @@ $claims = $claimsStmt->fetchAll();
                          class="sats-input"
                          min="0"
                          step="1"
-                         value="<?php echo ($c['sats_sent'] > 0) ? (int)$c['sats_sent'] : 100; ?>" />
+                         value="<?php echo ($c['sats_sent'] > 0) ? (int)$c['sats_sent'] : $DEFAULT_REWARD_SATS; ?>" />
 
                   <label class="tiny">TX ref:</label>
                   <input type="text"
