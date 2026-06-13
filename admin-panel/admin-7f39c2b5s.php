@@ -160,21 +160,38 @@ if (!$isLoggedIn) {
 
 // --- Admin logged in from here down ---
 
-// Current filters (default: pending, last24 unchecked)
+// Current filters (default: processing, last24 unchecked, 20 records)
 $allowedStatuses = ['pending','processing','paid','failed','blocked'];
-$filterStatus = 'pending';
+$filterStatuses = ['processing'];
 $filterLast24 = false;
+$filterLimit = 20;
 
-// Prefer GET for filters, but allow POST hidden fields so they persist after updates
+function normalizeStatusList($input, $allowedStatuses) {
+    $statuses = [];
+    if (is_array($input)) {
+        $statuses = $input;
+    } elseif (is_string($input) && trim($input) !== '') {
+        $statuses = explode(',', $input);
+    }
+    $normalized = [];
+    foreach ($statuses as $status) {
+        $status = strtolower(trim($status));
+        if (in_array($status, $allowedStatuses, true)) {
+            $normalized[] = $status;
+        }
+    }
+    return array_values(array_unique($normalized));
+}
+
 if (isset($_GET['filter_status'])) {
-    $tmp = strtolower($_GET['filter_status']);
-    if ($tmp === 'all' || in_array($tmp, $allowedStatuses, true)) {
-        $filterStatus = $tmp;
+    $tmpStatuses = normalizeStatusList($_GET['filter_status'], $allowedStatuses);
+    if (!empty($tmpStatuses)) {
+        $filterStatuses = $tmpStatuses;
     }
 } elseif (isset($_POST['filter_status'])) {
-    $tmp = strtolower($_POST['filter_status']);
-    if ($tmp === 'all' || in_array($tmp, $allowedStatuses, true)) {
-        $filterStatus = $tmp;
+    $tmpStatuses = normalizeStatusList($_POST['filter_status'], $allowedStatuses);
+    if (!empty($tmpStatuses)) {
+        $filterStatuses = $tmpStatuses;
     }
 }
 
@@ -182,6 +199,12 @@ if (isset($_GET['filter_last24'])) {
     $filterLast24 = ($_GET['filter_last24'] === '1');
 } elseif (isset($_POST['filter_last24'])) {
     $filterLast24 = ($_POST['filter_last24'] === '1');
+}
+
+if (isset($_GET['filter_limit'])) {
+    $filterLimit = max(1, min(500, (int)$_GET['filter_limit']));
+} elseif (isset($_POST['filter_limit'])) {
+    $filterLimit = max(1, min(500, (int)$_POST['filter_limit']));
 }
 
 // --- Handle status + sats_sent + tx_reference update ---
@@ -218,13 +241,18 @@ if (isset($_POST['update_status'])) {
 }
 
 // --- Fetch filtered claims ---
-$limit = 50;
+$limit = $filterLimit;
 $where = [];
 $params = [];
 
-if ($filterStatus !== 'all' && in_array($filterStatus, $allowedStatuses, true)) {
-    $where[] = "status = :fstatus";
-    $params[':fstatus'] = $filterStatus;
+if ($filterStatuses !== [] && count($filterStatuses) !== count($allowedStatuses)) {
+    $placeholders = [];
+    foreach ($filterStatuses as $idx => $status) {
+        $key = ":fstatus{$idx}";
+        $placeholders[] = $key;
+        $params[$key] = $status;
+    }
+    $where[] = "status IN (" . implode(", ", $placeholders) . ")";
 }
 
 if ($filterLast24) {
@@ -358,6 +386,14 @@ $claims = $claimsStmt->fetchAll();
 
     .filter-checkbox {
       margin-left: 4px;
+    }
+
+    .filter-count {
+      width: 70px;
+      padding: 4px 6px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      font-size: 0.85rem;
     }
 
     .filter-button {
@@ -629,16 +665,24 @@ $claims = $claimsStmt->fetchAll();
 
       <!-- Filters -->
       <form method="get" class="filter-form">
+        <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+          <span style="font-size:0.85rem; font-weight:600;">Status:</span>
+          <?php foreach ($allowedStatuses as $st): ?>
+            <label style="display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">
+              <input type="checkbox"
+                     name="filter_status[]"
+                     value="<?php echo $st; ?>"
+                     class="filter-checkbox"
+                     <?php if (in_array($st, $filterStatuses, true)) echo 'checked'; ?> />
+              <?php echo ucfirst($st); ?>
+            </label>
+          <?php endforeach; ?>
+        </div>
         <label>
-          Status:
-          <select name="filter_status" class="filter-select">
-            <option value="pending"   <?php if ($filterStatus==='pending')   echo 'selected'; ?>>Pending only</option>
-            <option value="processing"<?php if ($filterStatus==='processing')echo 'selected'; ?>>Processing</option>
-            <option value="paid"      <?php if ($filterStatus==='paid')      echo 'selected'; ?>>Paid</option>
-            <option value="failed"    <?php if ($filterStatus==='failed')    echo 'selected'; ?>>Failed</option>
-            <option value="blocked"   <?php if ($filterStatus==='blocked')   echo 'selected'; ?>>Blocked</option>
-            <option value="all"       <?php if ($filterStatus==='all')       echo 'selected'; ?>>All statuses</option>
-          </select>
+          Show
+          <input type="number" name="filter_limit" class="filter-count" min="1" max="500" step="1"
+                 value="<?php echo (int)$filterLimit; ?>" />
+          records
         </label>
         <label>
           <input type="checkbox" name="filter_last24" value="1" class="filter-checkbox"
@@ -720,8 +764,9 @@ $claims = $claimsStmt->fetchAll();
               <td>
                 <form method="post" style="margin:0; display:flex; flex-direction:column; gap:3px;">
                   <input type="hidden" name="id" value="<?php echo (int)$c['id']; ?>" />
-                  <input type="hidden" name="filter_status" value="<?php echo htmlspecialchars($filterStatus, ENT_QUOTES, 'UTF-8'); ?>" />
+                  <input type="hidden" name="filter_status" value="<?php echo htmlspecialchars(implode(',', $filterStatuses), ENT_QUOTES, 'UTF-8'); ?>" />
                   <input type="hidden" name="filter_last24" value="<?php echo $filterLast24 ? '1' : '0'; ?>" />
+                  <input type="hidden" name="filter_limit" value="<?php echo (int)$filterLimit; ?>" />
 
                   <select name="status" class="status-select">
                     <?php foreach ($allowedStatuses as $st): ?>
@@ -737,7 +782,7 @@ $claims = $claimsStmt->fetchAll();
                          class="sats-input"
                          min="0"
                          step="1"
-                         value="<?php echo ($c['sats_sent'] > 0) ? (int)$c['sats_sent'] : $DEFAULT_REWARD_SATS; ?>" />
+                         value="<?php echo ($c['sats_sent'] > 0) ? (int)$c['sats_sent'] : $c['sats_requested']; ?>" />
 
                   <label class="tiny">TX ref:</label>
                   <input type="text"
