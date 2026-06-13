@@ -165,6 +165,7 @@ $allowedStatuses = ['pending','processing','paid','failed','blocked'];
 $filterStatuses = ['processing'];
 $filterLast24 = false;
 $filterLimit = 20;
+$filterSort = 'DESC';
 
 function normalizeStatusList($input, $allowedStatuses) {
     $statuses = [];
@@ -205,6 +206,19 @@ if (isset($_GET['filter_limit'])) {
     $filterLimit = max(1, min(500, (int)$_GET['filter_limit']));
 } elseif (isset($_POST['filter_limit'])) {
     $filterLimit = max(1, min(500, (int)$_POST['filter_limit']));
+}
+
+// Sort order: only allow ASC or DESC (default DESC)
+if (isset($_GET['filter_sort'])) {
+  $tmpSort = strtoupper(trim($_GET['filter_sort']));
+  if (in_array($tmpSort, ['ASC','DESC'], true)) {
+    $filterSort = $tmpSort;
+  }
+} elseif (isset($_POST['filter_sort'])) {
+  $tmpSort = strtoupper(trim($_POST['filter_sort']));
+  if (in_array($tmpSort, ['ASC','DESC'], true)) {
+    $filterSort = $tmpSort;
+  }
 }
 
 // --- Handle status + sats_sent + tx_reference update ---
@@ -269,7 +283,7 @@ if ($where) {
     $sql .= " WHERE " . implode(" AND ", $where);
 }
 
-$sql .= " ORDER BY created_at DESC LIMIT :lim";
+$sql .= " ORDER BY created_at " . $filterSort . " LIMIT :lim";
 
 $claimsStmt = $pdo->prepare($sql);
 foreach ($params as $k => $v) {
@@ -685,6 +699,13 @@ $claims = $claimsStmt->fetchAll();
           records
         </label>
         <label>
+          Sort:
+          <select name="filter_sort" class="filter-select">
+            <option value="DESC" <?php if ($filterSort==='DESC') echo 'selected'; ?>>Newest first (DESC)</option>
+            <option value="ASC"  <?php if ($filterSort==='ASC')  echo 'selected'; ?>>Oldest first (ASC)</option>
+          </select>
+        </label>
+        <label>
           <input type="checkbox" name="filter_last24" value="1" class="filter-checkbox"
                  <?php if ($filterLast24) echo 'checked'; ?> />
           Only last 24h
@@ -767,6 +788,7 @@ $claims = $claimsStmt->fetchAll();
                   <input type="hidden" name="filter_status" value="<?php echo htmlspecialchars(implode(',', $filterStatuses), ENT_QUOTES, 'UTF-8'); ?>" />
                   <input type="hidden" name="filter_last24" value="<?php echo $filterLast24 ? '1' : '0'; ?>" />
                   <input type="hidden" name="filter_limit" value="<?php echo (int)$filterLimit; ?>" />
+                  <input type="hidden" name="filter_sort" value="<?php echo htmlspecialchars($filterSort, ENT_QUOTES, 'UTF-8'); ?>" />
 
                   <select name="status" class="status-select">
                     <?php foreach ($allowedStatuses as $st): ?>
