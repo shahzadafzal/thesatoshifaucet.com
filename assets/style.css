@@ -685,3 +685,147 @@ footer a {
     transition-duration: 0.001ms !important;
   }
 }
+
+
+/* ============================================================
+   FOOT BALL GAME POPUP
+   ============================================================ */
+
+.penalty-game-btn {
+  padding: 12px 22px;
+  border: 0;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+.penalty-game-btn:hover {
+  background: #15803d;
+}
+
+.penalty-popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.penalty-popup-overlay.is-open {
+  display: flex;
+}
+
+.penalty-popup-box {
+  position: relative;
+  width: min(100%, 960px);
+  height: min(90vh, 680px);
+  background: #111;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+
+.penalty-popup-box iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+
+.penalty-popup-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.penalty-popup-close:hover {
+  background: rgba(220, 38, 38, 0.95);
+}
+
+body.penalty-popup-active {
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .penalty-popup-overlay {
+    padding: 8px;
+  }
+
+  .penalty-popup-box {
+    width: 100%;
+    height: 92vh;
+    border-radius: 14px;
+  }
+
+  .penalty-popup-close {
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .penalty-popup-box {
+    width: 96vw;
+    height: 92vh;
+  }
+}
+
+.fifa-game-btn{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-decoration:none;
+    background:linear-gradient(135deg,#00a651,#008c45);
+    color:#fff;
+    border-radius:20px;
+    padding:18px 24px;
+    margin:15px 0;
+    box-shadow:0 8px 25px rgba(0,166,81,.35);
+    transition:.3s;
+    position:relative;
+    overflow:hidden;
+}
+
+.fifa-game-btn:hover{
+    transform:translateY(-3px);
+    box-shadow:0 12px 30px rgba(0,166,81,.5);
+}
+
+.fifa-game-btn::before{
+    content:'🏆';
+    position:absolute;
+    right:15px;
+    top:10px;
+    font-size:30px;
+    opacity:.2;
+}
+
+.fifa-game-btn{  
+    font-weight:700;
+}
+
+.fifa-game-btn span{
+    font-size:14px;
+    font-weight:400;
+    margin-top:4px;
+    opacity:.9;
+}

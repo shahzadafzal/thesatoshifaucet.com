@@ -565,7 +565,7 @@
 
             function updateUI(balance, totals) {
                 const totalPaid = totals.total_sent || 0;
-                const supportReceived = 0;//(balance || 0) + totalPaid;
+                const supportReceived = 10000;//(balance || 0) + totalPaid;
 
                 // estimate claims remaining (min/max and avg)
                 const minCost = BASE_PAYOUT + MIN_FEE;

@@ -8,22 +8,23 @@
 
 
 RewriteEngine On
+RewriteBase /faucet/
 
-# Redirect index.html -> /
-RewriteRule ^index\.html$ / [R=301,L]
+# Redirect index.html -> /faucet/
+RewriteRule ^index\.html$ ./ [R=301,L]
 
-# Redirect faucet-status.php -> /faucet-status
-RewriteCond %{THE_REQUEST} \s/+faucet-status\.php[\s?]
-RewriteRule ^faucet-status\.php$ /faucet-status [R=301,L]
+# Redirect faucet-status.php -> faucet-status
+RewriteCond %{THE_REQUEST} \s/+(.*/)?faucet-status\.php[\s?]
+RewriteRule ^faucet-status\.php$ faucet-status [R=301,L]
 
 # Pretty URL for faucet-status
 RewriteRule ^faucet-status/?$ faucet-status.php [L]
 
-# Redirect .html URLs -> extensionless URLs
+# Redirect .html URLs -> extensionless URLs inside current folder
 RewriteCond %{THE_REQUEST} \s/+(.+?)\.html[\s?]
-RewriteRule ^(.+)\.html$ /$1 [R=301,L]
+RewriteRule ^(.+)\.html$ $1 [R=301,L]
 
-# Internally serve .html files
+# Internally serve .html files anywhere, including folders
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME}.html -f
-RewriteRule ^([^/]+)/?$ $1.html [L]
+RewriteRule ^(.+?)/?$ $1.html [L]

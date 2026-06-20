@@ -27,6 +27,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['captcha_config'])) {
     exit;
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['cooldown_status'])) {
+    $configFile = __DIR__ . '/config.local.php';
+    if (!file_exists($configFile)) {
+        echo json_encode(['ok' => false]);
+        exit;
+    }
+    require $configFile;
+
+    try {
+        $pdo = get_pdo();
+        $claimCooldownMinutes = isset($GLOBAL_CLAIM_COOLDOWN_MINUTES) ? (int)$GLOBAL_CLAIM_COOLDOWN_MINUTES : 10;
+        $remaining = 0;
+        if ($claimCooldownMinutes > 0) {
+            $cooldownStmt = $pdo->query(
+                "SELECT TIMESTAMPDIFF(SECOND, MAX(created_at), NOW()) AS seconds_since_last FROM faucet_claims"
+            );
+            $cooldownRow = $cooldownStmt->fetch();
+            if ($cooldownRow && $cooldownRow['seconds_since_last'] !== null) {
+                $secondsSinceLast = max(0, (int)$cooldownRow['seconds_since_last']);
+                $required = $claimCooldownMinutes * 60;
+                if ($secondsSinceLast < $required) {
+                    $remaining = $required - $secondsSinceLast;
+                }
+            }
+        }
+        echo json_encode([
+            'ok' => true,
+            'remaining_seconds' => $remaining,
+        ]);
+    } catch (Throwable $e) {
+        echo json_encode(['ok' => false]);
+    }
+    exit;
+}
+
 // --- helper: connect to DB ---
 function get_pdo(): PDO {
     global $DB_HOST,$DB_NAME,$DB_USER,$DB_PASS;
@@ -194,6 +229,33 @@ try {
             'message' => 'Queue is full — please try again in a little while. Thank you for your patience.'
         ]);
         exit;
+    }
+
+    // Global cooldown between claims (minutes).
+    $claimCooldownMinutes = isset($GLOBAL_CLAIM_COOLDOWN_MINUTES) ? (int) $GLOBAL_CLAIM_COOLDOWN_MINUTES : 10;
+    if ($claimCooldownMinutes > 0) {
+        $cooldownStmt = $pdo->query(
+            "SELECT TIMESTAMPDIFF(SECOND, MAX(created_at), NOW()) AS seconds_since_last FROM faucet_claims"
+        );
+        $cooldownRow = $cooldownStmt->fetch();
+        if ($cooldownRow && $cooldownRow['seconds_since_last'] !== null) {
+            $secondsSinceLast = max(0, (int) $cooldownRow['seconds_since_last']);
+            $requiredDelay = $claimCooldownMinutes * 60;
+            if ($secondsSinceLast < $requiredDelay) {
+                $remaining = $requiredDelay - $secondsSinceLast;
+                $minutes = floor($remaining / 60);
+                $seconds = $remaining % 60;
+                $waitText = $minutes > 0
+                    ? sprintf('%d minute%s and %d second%s', $minutes, $minutes === 1 ? '' : 's', $seconds, $seconds === 1 ? '' : 's')
+                    : sprintf('%d second%s', $seconds, $seconds === 1 ? '' : 's');
+
+                echo json_encode([
+                    'status'  => 'cooldown',
+                    'message' => 'Please wait another ' . $waitText . ' before submitting a new claim.',
+                ]);
+                exit;
+            }
+        }
     }
 
     // Use configurable reward from config.local.php; fall back to 100 sats.

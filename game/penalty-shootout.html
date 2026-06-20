@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Penalty Shootout</title>
+  <link rel="stylesheet" href="penalty-shootout-bitcoin-theme.css" />
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="../images/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="../images/favicon-16x16.png">
+  <link rel="apple-touch-icon" href="../images/apple-touch-icon.png">
+  
+</head>
+<body>
+<img src="https://cloud.umami.is/p/sdkNPwpxK" alt="" />
+  <!-- ═══════════════════════════════════════════
+       COUNTRY PICKER MODAL
+  ══════════════════════════════════════════════ -->
+  <div id="country-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Select Country">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>Select Country</h2>
+        <button id="modal-close" class="modal-close" aria-label="Close">✕</button>
+      </div>
+      <input type="text" id="country-search" placeholder="Search country…" autocomplete="off" />
+      <ul id="country-list" role="listbox"></ul>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       RESULT OVERLAY (Goal / Saved / Missed)
+  ══════════════════════════════════════════════ -->
+  <div id="result-overlay" class="result-overlay hidden" aria-live="polite">
+    <div class="result-box">
+      <div id="result-icon" class="result-icon"></div>
+      <div id="result-text" class="result-text"></div>
+      <div id="result-sub"  class="result-sub"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       WINNER OVERLAY
+  ══════════════════════════════════════════════ -->
+  <div id="winner-overlay" class="winner-overlay hidden" aria-live="assertive">
+    <canvas id="confetti-canvas"></canvas>
+    <div class="winner-box">
+      <div id="winner-flag"  class="winner-flag"></div>
+      <div id="winner-text"  class="winner-text"></div>
+      <div id="winner-score" class="winner-score"></div>
+      <button id="winner-reset" class="btn-reset">Play Again</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       MAIN GAME WRAPPER
+  ══════════════════════════════════════════════ -->
+  <div id="game-wrapper">
+
+    <!-- TOP BAR: flags + mode toggle + mute -->
+    <header class="top-bar">
+
+      <!-- LEFT TEAM FLAG -->
+      <div class="team-block team-left">
+        <button class="flag-btn" id="flag-left"  aria-label="Change left team" title="Click to change team">
+          <span id="flag-emoji-left"  class="flag-emoji">🏴</span>
+        </button>
+        <span id="team-name-left" class="team-name"></span>
+      </div>
+
+      <!-- CENTER CONTROLS -->
+      <div class="center-controls">
+        <div class="score-display">
+          <span id="score-left"  class="score-num">0</span>
+          <span class="score-sep">–</span>
+          <span id="score-right" class="score-num">0</span>
+        </div>
+        <div id="penalty-counter" class="penalty-counter">Penalty 1 of 5</div>
+        <div class="mode-toggle">
+          <button id="mode-btn" class="btn-mode" title="Switch game mode">HODLer 👤 vs 🤖</button>
+        </div>
+      </div>
+
+      <!-- RIGHT TEAM FLAG -->
+      <div class="team-block team-right">
+        <span id="team-name-right" class="team-name"></span>
+        <button class="flag-btn" id="flag-right" aria-label="Change right team" title="Click to change team">
+          <span id="flag-emoji-right" class="flag-emoji">🏴</span>
+        </button>
+      </div>
+
+      <!-- MUTE BUTTON (top-right corner) -->
+      <button id="mute-btn" class="mute-btn" aria-label="Toggle sound" title="Mute / Unmute">🔊</button>
+    </header>
+
+    <!-- ──────────────────────────────────────────
+         PITCH AREA
+    ─────────────────────────────────────────── -->
+    <main class="pitch-area">
+
+      <!-- GOALKEEPER SPRITE -->
+      <div id="goalkeeper" class="goalkeeper" aria-hidden="true">
+        <div class="gk-body"></div>
+      </div>
+
+      <!-- GOAL POST (SVG) -->
+      <div class="goal-container">
+        <svg id="goal-svg" class="goal-svg" viewBox="0 0 480 280" xmlns="http://www.w3.org/2000/svg"
+             aria-label="Football goal" role="img">
+          <!-- Net background -->
+          <defs>
+            <pattern id="net-pattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+              <line x1="0" y1="0" x2="20" y2="20" stroke="rgba(255,255,255,0.12)" stroke-width="0.8"/>
+              <line x1="20" y1="0" x2="0" y2="20" stroke="rgba(255,255,255,0.12)" stroke-width="0.8"/>
+              <line x1="0" y1="0" x2="20" y2="0" stroke="rgba(255,255,255,0.08)" stroke-width="0.8"/>
+              <line x1="0" y1="0" x2="0" y2="20" stroke="rgba(255,255,255,0.08)" stroke-width="0.8"/>
+            </pattern>
+          </defs>
+          <!-- Net fill -->
+          <rect x="16" y="10" width="448" height="256" fill="url(#net-pattern)" rx="2"/>
+          <!-- Goal frame -->
+          <rect x="8"  y="6"   width="464" height="264" fill="none" stroke="#fff" stroke-width="10" rx="3"/>
+          <!-- Ground line -->
+          <line x1="0" y1="274" x2="480" y2="274" stroke="#5a9e47" stroke-width="4"/>
+          <!-- Post shadows -->
+          <rect x="8"  y="6"  width="6"  height="264" fill="rgba(0,0,0,0.18)"/>
+          <rect x="462" y="6"  width="6"  height="264" fill="rgba(0,0,0,0.18)"/>
+        </svg>
+
+        <!-- 12 SHOOTING ZONES (4 cols × 3 rows) overlaid on goal -->
+        <div id="shoot-zones" class="shoot-zones" aria-label="Shooting zones">
+          <!-- Zones are created by JS -->
+        </div>
+      </div>
+
+      <!-- STATUS MESSAGE (whose turn / instruction) -->
+      <div id="status-msg" class="status-msg" aria-live="polite">Click a zone to shoot!</div>
+
+    </main>
+
+    <!-- ──────────────────────────────────────────
+         PENALTY TRACKER (bottom)
+    ─────────────────────────────────────────── -->
+    <footer class="penalty-footer">
+      <div class="penalty-track track-left">
+        <span id="left-label" class="track-label"></span>
+        <div id="dots-left" class="dots"></div>
+      </div>
+      <button id="reset-btn" class="btn-reset" title="Restart game">↺ Reset</button>
+      <div class="penalty-track track-right">
+        <div id="dots-right" class="dots"></div>
+        <span id="right-label" class="track-label"></span>
+      </div>
+    </footer>
+
+  </div><!-- /game-wrapper -->
+
+  <!-- ═══════════════════════════════════════════
+       SCRIPTS
+  ══════════════════════════════════════════════ -->
+  <script src="penalty-shootout.js"></script>
+</body>
+</html>

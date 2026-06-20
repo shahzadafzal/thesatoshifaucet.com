@@ -1,0 +1,769 @@
+/* ═══════════════════════════════════════════════════════════════
+   SATOSHI CUP — PENALTY SHOOTOUT STYLESHEET
+   Theme: Bitcoin × FIFA World Cup
+   Palette: BTC Orange #f7931a · Deep Black #0d0600 · Gold #ffd700
+   Signature: goal posts glow Bitcoin orange like blockchain nodes
+═══════════════════════════════════════════════════════════════ */
+
+/* ── DESIGN TOKENS ───────────────────────────────────────────── */
+:root {
+  /* Bitcoin brand */
+  --btc-orange:       #f7931a;
+  --btc-orange-dark:  #c4720d;
+  --btc-orange-glow:  rgba(247,147,26,0.55);
+  --btc-orange-dim:   rgba(247,147,26,0.18);
+
+  /* Dark field */
+  --field-black:      #0d0600;
+  --field-dark:       #180c00;
+  --field-mid:        #241200;
+  --field-panel:      rgba(0,0,0,0.42);
+
+  /* Accents */
+  --gold:             #ffd700;
+  --gold-dim:         rgba(255,215,0,0.25);
+  --sat-green:        #00e676;   /* "sats earned" green */
+  --red:              #e03030;
+  --white:            #ffffff;
+  --off-white:        #fff3e0;   /* warm white tinted orange */
+
+  /* Zones */
+  --zone-hover:       rgba(247,147,26,0.22);
+  --zone-active:      rgba(247,147,26,0.42);
+
+  /* Misc */
+  --radius-sm:    6px;
+  --radius-md:    12px;
+  --radius-lg:    20px;
+  --transition:   0.22s ease;
+  --font-display: 'Segoe UI', system-ui, sans-serif;
+}
+
+/* ── RESET ───────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── BODY — blockchain hex-grid background ───────────────────── */
+body {
+  font-family: var(--font-display);
+  background-color: var(--field-black);
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  /*
+   * Subtle hex/blockchain grid overlay — evokes the Bitcoin network
+   * Two offset square grids create a diamond-node pattern
+   */
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% 0%,   rgba(247,147,26,0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(247,147,26,0.04) 0%, transparent 60%),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px, transparent 38px,
+      rgba(247,147,26,0.04) 38px, rgba(247,147,26,0.04) 40px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px, transparent 38px,
+      rgba(247,147,26,0.04) 38px, rgba(247,147,26,0.04) 40px
+    );
+}
+
+/* ── GAME WRAPPER ────────────────────────────────────────────── */
+#game-wrapper {
+  width: 100%;
+  max-width: 720px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* ── TOP BAR ─────────────────────────────────────────────────── */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px 8px;
+  background: rgba(0,0,0,0.5);
+  border-bottom: 1px solid rgba(247,147,26,0.2);
+  position: relative;
+  flex-shrink: 0;
+  gap: 6px;
+  /* Faint orange glow along the top edge */
+  box-shadow: 0 1px 0 rgba(247,147,26,0.12), inset 0 1px 0 rgba(247,147,26,0.06);
+}
+
+/* BRAND ROW */
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 1px;
+}
+.btc-logo {
+  font-size: 1rem;
+  color: var(--btc-orange);
+  text-shadow: 0 0 8px var(--btc-orange-glow);
+  font-weight: 900;
+  line-height: 1;
+}
+.brand-name {
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: var(--btc-orange);
+  text-transform: uppercase;
+  text-shadow: 0 0 6px var(--btc-orange-glow);
+}
+
+/* TEAM BLOCKS */
+.team-block {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.team-right { justify-content: flex-end; }
+
+/* FLAG BUTTONS */
+.flag-btn {
+  background: rgba(247,147,26,0.08);
+  border: 2px solid rgba(247,147,26,0.3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 4px 6px;
+  line-height: 1;
+  transition: border-color var(--transition), background var(--transition), box-shadow var(--transition);
+  touch-action: manipulation;
+}
+.flag-btn:hover, .flag-btn:focus-visible {
+  border-color: var(--btc-orange);
+  background: rgba(247,147,26,0.18);
+  box-shadow: 0 0 10px var(--btc-orange-glow);
+  outline: none;
+}
+.flag-emoji { font-size: 1.6rem; display: block; }
+
+.team-name {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--off-white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 68px;
+}
+
+/* CENTER CONTROLS */
+.center-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.score-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.score-num {
+  font-size: 2rem;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--white);
+  text-shadow: 0 0 14px var(--btc-orange-glow);
+  min-width: 28px;
+  text-align: center;
+}
+.score-sep { font-size: 1.4rem; color: rgba(255,255,255,0.3); font-weight: 300; }
+
+.penalty-counter {
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(247,147,26,0.7);
+}
+
+.btn-mode {
+  margin-top: 2px;
+  background: var(--btc-orange-dim);
+  border: 1px solid rgba(247,147,26,0.35);
+  color: var(--btc-orange);
+  border-radius: 99px;
+  padding: 3px 10px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: background var(--transition), box-shadow var(--transition);
+  touch-action: manipulation;
+}
+.btn-mode:hover {
+  background: rgba(247,147,26,0.28);
+  box-shadow: 0 0 8px var(--btc-orange-glow);
+}
+
+/* MUTE BUTTON */
+.mute-btn {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  opacity: 0.65;
+  transition: opacity var(--transition);
+  touch-action: manipulation;
+  line-height: 1;
+  padding: 4px;
+}
+.mute-btn:hover { opacity: 1; }
+
+/* ── SATS TICKER BAR ─────────────────────────────────────────── */
+/*
+ * A live "sats earned" strip between header and pitch.
+ * Green sats number glows like a Lightning Network payment.
+ */
+.sats-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 18px;
+  background: rgba(0,0,0,0.38);
+  border-bottom: 1px solid rgba(247,147,26,0.1);
+  flex-shrink: 0;
+  gap: 8px;
+}
+.sats-side {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+.sats-right-side { justify-content: flex-end; }
+.sats-label {
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.35);
+}
+.sats-count {
+  font-size: 0.92rem;
+  font-weight: 900;
+  color: var(--sat-green);
+  text-shadow: 0 0 10px rgba(0,230,118,0.6);
+  letter-spacing: 0.04em;
+  transition: color 0.3s, text-shadow 0.3s;
+}
+.sats-count.bumped {
+  color: #69ff9a;
+  text-shadow: 0 0 20px rgba(0,230,118,0.9);
+}
+.sats-divider {
+  font-size: 0.9rem;
+  color: var(--btc-orange);
+  text-shadow: 0 0 8px var(--btc-orange-glow);
+  flex-shrink: 0;
+}
+
+/* ── PITCH AREA ──────────────────────────────────────────────── */
+.pitch-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── GOALKEEPER ──────────────────────────────────────────────── */
+/*
+ * GK wears a Bitcoin-orange jersey with a ₿ on the chest.
+ * Body is CSS-only: div + ::before (head) + ::after (arms).
+ */
+.goalkeeper {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) translateY(-18%);
+  z-index: 10;
+  pointer-events: none;
+  transition: left 0.28s cubic-bezier(0.34,1.56,0.64,1),
+              transform 0.28s cubic-bezier(0.34,1.56,0.64,1);
+}
+.gk-body {
+  width: 36px;
+  height: 52px;
+  background: linear-gradient(160deg, #f7931a 40%, #c4720d 100%);
+  border-radius: 8px 8px 4px 4px;
+  position: relative;
+  box-shadow: 0 4px 18px rgba(247,147,26,0.5);
+}
+/* ₿ on jersey chest */
+.gk-body::before {
+  content: '₿';
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 16px;
+  font-weight: 900;
+  color: rgba(0,0,0,0.35);
+  line-height: 1;
+}
+/* Head — floats above body */
+.gk-body::after {
+  content: '';
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 26px;
+  height: 26px;
+  background: #f8c9a0;
+  border-radius: 50%;
+  border: 2px solid rgba(0,0,0,0.12);
+  box-shadow: 0 0 6px rgba(0,0,0,0.3);
+}
+/* Arms — separate element so we can keep ::before for ₿ */
+.gk-arms {
+  position: absolute;
+  top: 22px;
+  left: -30px;
+  width: 96px;
+  height: 10px;
+  background: linear-gradient(90deg, #f7931a, #c4720d);
+  border-radius: 5px;
+  box-shadow: 0 2px 8px rgba(247,147,26,0.4);
+}
+
+/* GK dive states */
+.goalkeeper.dive-left  { transform: translate(-200%, -50%) translateY(-18%) rotate(-15deg); }
+.goalkeeper.dive-right { transform: translate(100%,  -50%) translateY(-18%) rotate(15deg);  }
+.goalkeeper.center     { transform: translate(-50%,  -50%) translateY(-18%); }
+
+/* ── GOAL CONTAINER ──────────────────────────────────────────── */
+.goal-container {
+  position: relative;
+  width: 100%;
+  max-width: 540px;
+}
+.goal-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  /* Bitcoin orange floodlight glow — the signature visual element */
+  filter:
+    drop-shadow(0 0 10px rgba(247,147,26,0.8))
+    drop-shadow(0 0 28px rgba(247,147,26,0.4))
+    drop-shadow(0 0 60px rgba(247,147,26,0.15));
+}
+
+/* ── SHOOT ZONES ─────────────────────────────────────────────── */
+.shoot-zones {
+  position: absolute;
+  top: 4%;
+  left: 4%;
+  right: 4%;
+  bottom: 6%;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 2px;
+  cursor: crosshair;
+}
+.zone {
+  border-radius: 3px;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
+  touch-action: manipulation;
+  cursor: crosshair;
+}
+.zone:hover {
+  background: var(--zone-hover);
+  border-color: rgba(247,147,26,0.45);
+  box-shadow: inset 0 0 8px rgba(247,147,26,0.2);
+}
+.zone:active { background: var(--zone-active); }
+.zone.targeted {
+  background: rgba(255,215,0,0.3);
+  border-color: var(--gold);
+  box-shadow: inset 0 0 12px rgba(255,215,0,0.3);
+}
+.zone.saved-zone {
+  background: rgba(224,48,48,0.3);
+  border-color: var(--red);
+}
+
+/* ── STATUS MESSAGE ──────────────────────────────────────────── */
+.status-msg {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.5);
+  text-align: center;
+  min-height: 20px;
+}
+.status-flag { font-size: 1.05rem; vertical-align: middle; }
+.status-name { font-weight: 700; color: var(--off-white); font-size: 0.8rem; vertical-align: middle; }
+.status-hint { color: rgba(247,147,26,0.65); font-size: 0.72rem; vertical-align: middle; }
+
+/* ── PENALTY FOOTER ──────────────────────────────────────────── */
+.penalty-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 14px 9px;
+  background: rgba(0,0,0,0.42);
+  border-top: 1px solid rgba(247,147,26,0.14);
+  gap: 8px;
+  flex-shrink: 0;
+}
+.penalty-track {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+}
+.track-right { justify-content: flex-end; }
+
+.track-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(247,147,26,0.55);
+  white-space: nowrap;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dots { display: flex; gap: 4px; align-items: center; }
+
+/*
+ * Dots styled as Bitcoin coins: gold ring, ₿ centre on goal.
+ * Saved/missed = red X ring.
+ */
+.dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.2);
+  background: transparent;
+  transition: background 0.3s, border-color 0.3s, transform 0.3s, box-shadow 0.3s;
+  flex-shrink: 0;
+  font-size: 0;          /* hide ₿ text until goal */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--field-black);
+  font-weight: 900;
+  line-height: 1;
+}
+.dot.goal {
+  background: var(--btc-orange);
+  border-color: var(--gold);
+  box-shadow: 0 0 8px var(--btc-orange-glow);
+  transform: scale(1.12);
+  font-size: 8px;        /* show ₿ on scored dot */
+}
+.dot.goal::after  { content: '₿'; }
+.dot.saved {
+  background: var(--red);
+  border-color: #ff6060;
+}
+.dot.saved::after { content: '✕'; font-size: 8px; color: #fff; }
+.dot.current {
+  border-color: var(--btc-orange);
+  box-shadow: 0 0 8px var(--btc-orange-glow);
+}
+
+/* RESET / NEW BLOCK BUTTON */
+.btn-reset {
+  background: var(--btc-orange-dim);
+  color: var(--btc-orange);
+  border: 1px solid rgba(247,147,26,0.4);
+  border-radius: 99px;
+  padding: 7px 16px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: background var(--transition), box-shadow var(--transition);
+  touch-action: manipulation;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-reset:hover {
+  background: rgba(247,147,26,0.28);
+  box-shadow: 0 0 12px var(--btc-orange-glow);
+}
+
+/* ── RESULT OVERLAY ──────────────────────────────────────────── */
+.result-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.76);
+  animation: fadeIn 0.2s ease;
+  pointer-events: none;
+}
+.result-overlay.hidden { display: none; }
+
+.result-box {
+  text-align: center;
+  animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+.result-icon { font-size: 3.2rem; line-height: 1; }
+.result-text {
+  font-size: 2.8rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  margin: 6px 0 2px;
+  text-shadow: 0 0 24px currentColor;
+}
+.result-text.goal  { color: var(--btc-orange); }
+.result-text.saved { color: var(--red); }
+.result-text.miss  { color: var(--gold); }
+
+/* Sats reward pop — big and glowing green */
+.result-sat {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: var(--sat-green);
+  text-shadow: 0 0 18px rgba(0,230,118,0.8);
+  letter-spacing: 0.06em;
+  min-height: 1.6rem;
+  margin-bottom: 2px;
+}
+.result-sub {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.5);
+}
+
+/* ── WINNER OVERLAY ──────────────────────────────────────────── */
+.winner-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.winner-overlay.hidden { display: none; }
+
+#confetti-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.winner-box {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  background: rgba(13,6,0,0.88);
+  border: 2px solid var(--btc-orange);
+  border-radius: var(--radius-lg);
+  padding: 32px 44px;
+  animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  box-shadow:
+    0 0 40px rgba(247,147,26,0.45),
+    0 0 80px rgba(247,147,26,0.15);
+}
+.winner-flag { font-size: 3.8rem; line-height: 1; margin-bottom: 6px; }
+.winner-text {
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: var(--btc-orange);
+  text-shadow: 0 0 24px var(--btc-orange-glow);
+  margin-bottom: 4px;
+}
+.winner-score {
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.55);
+  margin-bottom: 6px;
+  letter-spacing: 0.08em;
+}
+/* Total sats won — highlight in green */
+.winner-sats {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: var(--sat-green);
+  text-shadow: 0 0 16px rgba(0,230,118,0.7);
+  margin-bottom: 20px;
+  letter-spacing: 0.04em;
+}
+
+/* ── COUNTRY PICKER MODAL ────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0,0,0,0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+.modal-overlay.hidden { display: none; }
+
+.modal-box {
+  background: #160900;
+  border: 1px solid rgba(247,147,26,0.3);
+  border-radius: var(--radius-lg);
+  width: 92%;
+  max-width: 380px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 30px rgba(247,147,26,0.12);
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(247,147,26,0.15);
+}
+.modal-header h2 { font-size: 0.95rem; font-weight: 700; color: var(--off-white); }
+.modal-close {
+  background: none; border: none; color: var(--white);
+  font-size: 1.1rem; cursor: pointer; padding: 2px 6px;
+  border-radius: 4px; transition: background var(--transition);
+}
+.modal-close:hover { background: rgba(247,147,26,0.15); }
+
+#country-search {
+  margin: 10px 14px 6px;
+  padding: 8px 12px;
+  background: rgba(247,147,26,0.06);
+  border: 1px solid rgba(247,147,26,0.25);
+  border-radius: var(--radius-sm);
+  color: var(--white);
+  font-size: 0.85rem;
+  outline: none;
+  flex-shrink: 0;
+}
+#country-search::placeholder { color: rgba(255,255,255,0.35); }
+#country-search:focus { border-color: var(--btc-orange); box-shadow: 0 0 8px var(--btc-orange-glow); }
+
+#country-list {
+  overflow-y: auto;
+  list-style: none;
+  padding: 4px 0 10px;
+  flex: 1;
+}
+#country-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  transition: background var(--transition);
+}
+#country-list li:hover { background: rgba(247,147,26,0.1); }
+#country-list li .c-flag { font-size: 1.4rem; }
+#country-list li .c-name { color: var(--off-white); }
+
+/* ── BALL ANIMATION ──────────────────────────────────────────── */
+@keyframes ballFly {
+  0%   { opacity: 1; transform: translate(0,0) scale(1); }
+  60%  { opacity: 1; transform: translate(var(--bx), var(--by)) scale(0.55); }
+  100% { opacity: 0; transform: translate(var(--bx), var(--by)) scale(0.4); }
+}
+/* Ball styled as a mini Bitcoin coin */
+.ball-anim {
+  position: fixed;
+  width: 24px;
+  height: 24px;
+  background: radial-gradient(circle at 38% 32%, #ffd700 0%, #f7931a 55%, #c4720d 100%);
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 900;
+  color: rgba(0,0,0,0.5);
+  pointer-events: none;
+  z-index: 90;
+  animation: ballFly 0.45s ease-in forwards;
+  box-shadow: 0 0 10px rgba(247,147,26,0.6);
+}
+
+/* ── KEYFRAMES ───────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; } to { opacity: 1; }
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.72); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes satsGlow {
+  0%, 100% { text-shadow: 0 0 10px rgba(0,230,118,0.6); }
+  50%       { text-shadow: 0 0 24px rgba(0,230,118,1); }
+}
+
+/* ── RESPONSIVE ──────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .team-name  { max-width: 50px; font-size: 0.56rem; }
+  .flag-emoji { font-size: 1.3rem; }
+  .score-num  { font-size: 1.6rem; }
+  .dot        { width: 13px; height: 13px; }
+  .winner-box { padding: 24px 26px; }
+  .winner-text{ font-size: 1.4rem; }
+  .sats-bar   { padding: 4px 12px; }
+  .brand-name { font-size: 0.52rem; }
+}
+@media (max-width: 400px) {
+  .top-bar      { padding: 6px 8px; }
+  .team-name    { display: none; }
+  .score-num    { font-size: 1.4rem; }
+  .penalty-footer { padding: 5px 8px 7px; }
+  .dot          { width: 11px; height: 11px; }
+  .btn-reset    { padding: 5px 11px; font-size: 0.68rem; }
+  .sats-label   { display: none; }
+  .sats-count   { font-size: 0.82rem; }
+}
+@media (max-height: 500px) {
+  .pitch-area     { padding: 3px 16px 2px; }
+  .penalty-footer { padding: 4px 14px 5px; }
+  .result-text    { font-size: 2rem; }
+  .sats-bar       { padding: 3px 14px; }
+  .brand-name     { display: none; }
+}
+@media (min-width: 900px) {
+  #game-wrapper { max-width: 820px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, .goalkeeper, .result-box, .winner-box { animation: none !important; transition: none !important; }
+}
