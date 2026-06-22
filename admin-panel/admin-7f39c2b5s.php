@@ -293,6 +293,15 @@ $claimsStmt->bindValue(':lim', $limit, PDO::PARAM_INT);
 $claimsStmt->execute();
 $claims = $claimsStmt->fetchAll();
 
+
+
+
+$processingCount = 0;
+$stmt = $pdo->query(
+    "SELECT COUNT(*) FROM faucet_claims WHERE status = 'processing'"
+);
+$processingCount  = (int)$stmt->fetchColumn();
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -638,7 +647,7 @@ $claims = $claimsStmt->fetchAll();
   <div class="page">
     <header>
       <div>
-        <h1>Faucet Admin</h1>
+        <h1>Faucet Admin(<?php echo count($claims); ?>/<?php echo (int)$processingCount; ?>)</h1>
         <div class="subtitle">Manage transaction statuses, sats_sent, and invoices.</div>
       </div>
       <div style="display:flex; gap:10px; align-items:center;">        
@@ -790,13 +799,7 @@ $claims = $claimsStmt->fetchAll();
                   <input type="hidden" name="filter_limit" value="<?php echo (int)$filterLimit; ?>" />
                   <input type="hidden" name="filter_sort" value="<?php echo htmlspecialchars($filterSort, ENT_QUOTES, 'UTF-8'); ?>" />
 
-                  <select name="status" class="status-select">
-                    <?php foreach ($allowedStatuses as $st): ?>
-                      <option value="<?php echo $st; ?>" <?php if ($c['status']===$st) echo 'selected'; ?>>
-                        <?php echo ucfirst($st); ?>
-                      </option>
-                    <?php endforeach; ?>
-                  </select>
+                  <label class="tiny">Status:</label><small><?php echo strtoupper($c['status']); ?></small>
 
                   <label class="tiny">Sats sent:</label>
                   <input type="number"
@@ -812,10 +815,20 @@ $claims = $claimsStmt->fetchAll();
                          class="tx-input"
                          value="<?php echo htmlspecialchars($c['tx_reference'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" />
                   <span class="reason"><strong>Reason:</strong> <?php echo $c['reason']?></span>
+                  
+                  <select name="status" class="status-select">
+                    <?php foreach ($allowedStatuses as $st): ?>
+                      <option value="<?php echo $st; ?>" <?php if ('paid'===$st) echo 'selected'; ?>>
+                        <?php echo ucfirst($st); ?>
+                      </option>
+                    <?php endforeach; ?>
+                  </select>
+
                   <input type="text"
                          name="reason"
                          class="tx-input"
                          value="<?php echo $c['reason']; ?>" />
+
                   
                   <button type="submit" name="update_status" value="1" class="update-btn">Update</button>
                 </form>
