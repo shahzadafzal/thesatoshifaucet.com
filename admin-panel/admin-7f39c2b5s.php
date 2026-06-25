@@ -677,11 +677,23 @@ $processingCount  = (int)$stmt->fetchColumn();
         </select>
       </label>
       <span id="scheduler-status" class="scheduler-status"></span>
+      <button id="run-scheduler-iframe-btn" class="run-scheduler-btn btn-bg" onclick="runSchedulerIframe()">
+        🪟 Run Scheduler in iframe
+      </button>
     </div>
 
     <div id="scheduler-output-wrap" class="scheduler-output-wrap">
       <pre id="scheduler-output" class="scheduler-output">Running…</pre>
       <button id="run-refresh-btn" class="run-scheduler-btn btn-bg" onclick="location.reload()">🗘 Refresh</button>
+    </div>
+
+    <div id="scheduler-iframe-wrap" class="scheduler-output-wrap">
+      <iframe
+        id="scheduler-frame"
+        style="width:100%;height:320px;border:1px solid #30363d;border-radius:6px;background:#0d1117;color:#fff;">
+      </iframe>
+
+      <button class="run-scheduler-btn btn-bg" onclick="location.reload()">🗘 Refresh</button>
     </div>
 
     <div class="panel">
@@ -922,6 +934,30 @@ $processingCount  = (int)$stmt->fetchColumn();
         });
       });
     });
+  </script>
+  <script>
+    function runSchedulerIframe() {
+      const btn    = document.getElementById('run-scheduler-iframe-btn');
+      const frame  = document.getElementById('scheduler-frame');
+      const wrap   = document.getElementById('scheduler-iframe-wrap');
+      const status = document.getElementById('scheduler-status');
+      const batch  = document.getElementById('scheduler-batch').value;
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Running iframe…';
+      wrap.classList.add('visible');
+      status.textContent = 'Running scheduler via iframe...';
+
+      frame.src = 'scheduler_process.php?admin_run=1&batch='
+        + encodeURIComponent(batch)
+        + '&t=' + Date.now();
+
+      frame.onload = function () {
+        btn.disabled = false;
+        btn.textContent = '🪟 Run Scheduler in iframe';
+        status.textContent = 'Iframe finished at ' + new Date().toLocaleTimeString();
+      };
+    }
   </script>
 </body>
 </html>

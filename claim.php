@@ -214,7 +214,7 @@ try {
     // The limit is configurable via $MAX_PROCESSING_CLAIMS in config.local.php.
     $limit = isset($MAX_PROCESSING_CLAIMS) ? (int)$MAX_PROCESSING_CLAIMS : 50;
     try {
-        $cntStmt = $pdo->prepare("SELECT COUNT(*) AS c FROM faucet_claims WHERE status = 'processing'");
+        $cntStmt = $pdo->prepare("SELECT COUNT(*) AS c FROM faucet_claims WHERE status = 'processing' OR status='pending'");
         $cntStmt->execute();
         $cntRow = $cntStmt->fetch();
         $processingCount = $cntRow ? (int)$cntRow['c'] : 0;
@@ -261,7 +261,7 @@ try {
     // Use configurable reward from config.local.php; fall back to 100 sats.
     $reward = isset($REWARD_SATS) ? (int) $REWARD_SATS : 100;
     if ($reward <= 0) {
-        $reward = 100;
+        $reward = 50;
     }
 
     $claimSource = strtolower($claimSource);

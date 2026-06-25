@@ -14,12 +14,46 @@
  * Run via CLI / cron:
  *   php scheduler_process.php
  */
-
+/*
 if (php_sapi_name() !== 'cli') {
     header('Content-Type: text/plain');
     http_response_code(403);
     echo "Forbidden: CLI access only.\n";
     exit(1);
+}
+*/
+
+$isCli = (php_sapi_name() === 'cli');
+
+if (!$isCli) {
+    session_start();
+
+    $isAdminHttp =
+        !empty($_SESSION['is_admin']) &&
+        $_SESSION['is_admin'] === true &&
+        isset($_GET['admin_run']) &&
+        $_GET['admin_run'] === '1';
+
+    if (!$isAdminHttp) {
+        header('Content-Type: text/plain');
+        http_response_code(403);
+        echo "Forbidden: admin access only.\n";
+        exit(1);
+    }
+
+    header('Content-Type: text/html; charset=utf-8');
+    echo '<!doctype html><html><head><style>
+        body{
+        margin:0;
+        padding:12px;
+        background:#0d1117;
+        color:#c9d1d9;
+        font-family:Consolas,Menlo,Monaco,"Courier New",monospace;
+        font-size:13px;
+        line-height:1.5;
+        white-space:pre-wrap;
+        }
+        </style></head><body>';
 }
 
 // -- Log header: each scheduler run writes a separator so you can track it in scheduler.log --
@@ -36,7 +70,7 @@ require $configFile;
 
 $REWARD_SATS = isset($REWARD_SATS) ? (int) $REWARD_SATS : 100;
 if ($REWARD_SATS <= 0) {
-    $REWARD_SATS = 100;
+    $REWARD_SATS = 50;
 }
 $REWARD_MSAT = $REWARD_SATS * 1000;
 
@@ -340,6 +374,10 @@ $REFUND_ON_FAIL = true;
 
 // Process up to N rows per run
 $BATCH = 5;
+
+if (!$isCli && isset($_GET['batch'])) {
+    $BATCH = max(1, min(5, (int)$_GET['batch']));
+}
 
 // Allow CLI override: php scheduler_process.php --batch=1
 if (!empty($argv)) {
@@ -799,5 +837,9 @@ for ($i = 0; $i < $BATCH; $i++) {
 
         continue;
     }
+}
+
+if (!$isCli) {
+    echo '</body></html>';
 }
 ?>
