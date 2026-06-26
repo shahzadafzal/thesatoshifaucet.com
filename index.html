@@ -464,8 +464,49 @@ earn bitcoin free
           .then(r => r.json())
           .then(data => {
             if (data.status === "queued") {
-              statusEl.textContent = data.message + " (Invoice: " + data.invoice + ")";
+              
+              //statusEl.textContent = data.message + " (Invoice: " + data.invoice + ")";
+              //statusEl.classList.add("status-success");
+
+              let title = "";
+              let emoji = "";
+
+              if (data.sats >= 90) {
+                  emoji = "💎";
+                  title = "JACKPOT!";
+              } else if (data.sats >= 80) {
+                  emoji = "🌟";
+                  title = "Awesome!";
+              } else if (data.sats >= 60) {
+                  emoji = "🎉";
+                  title = "Nice!";
+              } else {
+                  emoji = "⚡";
+                  title = "Success!";
+              }
+
+              statusEl.innerHTML = `
+                  <div style="font-size:1.35rem;font-weight:bold;margin-bottom:8px;">
+                      ${emoji} ${title}
+                  </div>
+
+                  <div style="font-size:1.15rem;margin-bottom:12px;">
+                      The faucet dripped <strong>${data.sats} sats</strong>!
+                  </div>
+
+                  <div style="margin-bottom:12px;">
+                      ⚡ Your reward has been queued and will be sent shortly.
+                  </div>
+
+                  <div style="font-size:0.85rem;opacity:.75;word-break:break-all;">
+                      <strong>Invoice:</strong><br>
+                      ${data.invoice}
+                  </div>
+              `;
+
               statusEl.classList.add("status-success");
+
+
               window.refreshRecentActivity();
             } else if (data.status === "already_claimed") {
               statusEl.textContent = data.message + " (Invoice: " + data.invoice + ")";

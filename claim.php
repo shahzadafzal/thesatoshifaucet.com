@@ -28,13 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['captcha_config'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['cooldown_status'])) {
-    $configFile = __DIR__ . '/config.local.php';
-    if (!file_exists($configFile)) {
-        echo json_encode(['ok' => false]);
-        exit;
-    }
-    require $configFile;
-
+    
     try {
         $pdo = get_pdo();
         $claimCooldownMinutes = isset($GLOBAL_CLAIM_COOLDOWN_MINUTES) ? (int)$GLOBAL_CLAIM_COOLDOWN_MINUTES : 10;
@@ -261,7 +255,7 @@ try {
     // Use configurable reward from config.local.php; fall back to 100 sats.
     $reward = isset($REWARD_SATS) ? (int) $REWARD_SATS : 100;
     if ($reward <= 0) {
-        $reward = 50;
+        $reward = 60;
     }
 
     $claimSource = strtolower($claimSource);

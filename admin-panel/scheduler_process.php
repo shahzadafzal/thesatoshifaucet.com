@@ -68,11 +68,13 @@ if (!file_exists($configFile)) {
 }
 require $configFile;
 
+/*
 $REWARD_SATS = isset($REWARD_SATS) ? (int) $REWARD_SATS : 100;
 if ($REWARD_SATS <= 0) {
     $REWARD_SATS = 50;
 }
 $REWARD_MSAT = $REWARD_SATS * 1000;
+*/
 
 date_default_timezone_set('UTC');
 
@@ -715,6 +717,16 @@ for ($i = 0; $i < $BATCH; $i++) {
         }
 
         $id = (int)$row['id'];
+        $sats_requested = (int)$row['sats_requested'];
+        
+        if ($sats_requested==0 || $sats_requested > $MAX_REWARD_SATS) {
+            $pdo->commit();
+            echo "Sats requested ({$sats_requested}) is invalid or exceeds max reward ({$MAX_REWARD_SATS}). Marking as failed.\n";
+            $reason = "Invalid request: {$sats_requested} sats (max allowed: {$MAX_REWARD_SATS})";
+            mark_failed($pdo, $id, $reason, false);
+            continue;
+        }
+        $REWARD_MSAT = $sats_requested * 1000;
 
         // Set to processing
         $pdo->prepare("UPDATE faucet_claims SET status='processing', reason=NULL WHERE id=:id")
@@ -722,7 +734,7 @@ for ($i = 0; $i < $BATCH; $i++) {
 
         $pdo->commit();
 
-        $lnurl = trim((string)$row['invoice']);
+        $lnurl = trim((string)$row['invoice']);                
 
          // Store decoded domain for sanity
         $domain = lnurl_extract_domain($lnurl);

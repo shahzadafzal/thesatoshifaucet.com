@@ -8,6 +8,16 @@
 
 session_start();
 
+$helpterFile = __DIR__ . '/../helper.php';
+
+if (!file_exists($helpterFile)) {
+    http_response_code(500);
+    echo "Server helper file missing.";
+    exit;
+}
+require $helpterFile;
+
+
 // If admin file is in SAME folder as config.local.php:
 $configFile = __DIR__ . '/../config.local.php';
 // If it's in a subfolder like /admin-panel/, use this instead:
@@ -766,17 +776,35 @@ $processingCount  = (int)$stmt->fetchColumn();
                 </div>
 
                 <?php if (!empty($c['pay_bolt11'])): ?>
+
+                  
+                  <?php
+                    $invoiceAmount = '';
+
+                    try {
+                        $decoded = decodeBolt11Invoice($c['pay_bolt11']);
+                        $invoiceAmount = $decoded['has_amount']
+                            ? number_format($decoded['amount_sats']) . ' sats'
+                            : 'Unknown amount';
+                    } catch (Throwable $e) {
+                        $invoiceAmount = 'Unknown amount';
+                    }
+                  ?>
+
                   <div style="display:flex; flex-direction:column; gap:6px;">
                     <textarea class="lnbc-copy" readonly><?php echo htmlspecialchars($c['pay_bolt11'], ENT_QUOTES, 'UTF-8'); ?></textarea>
                     <button type="button" class="copy-btn" onclick="copyInvoiceToClipboard(this,'lnbc-copy')">Copy pay invoice</button>
                     <div class="tiny">
-                      Paste into your wallet to pay <?php echo (int)$c['sats_requested']; ?> sats.
+                      Paste into your wallet to pay  <?= htmlspecialchars($invoiceAmount) ?>
                     </div>
                     <!-- QR Code: unique div id per claim row -->
                     <div class="qr-box">
                       <div id="qr-<?php echo (int)$c['id']; ?>"
                            data-invoice="<?php echo htmlspecialchars($c['pay_bolt11'], ENT_QUOTES, 'UTF-8'); ?>"></div>
-                      <div class="qr-label">⚡ Scan to pay <?php echo (int)$c['sats_requested']; ?> sats</div>
+                      
+                      <div class="qr-label">
+                          ⚡ Scan to pay <?= htmlspecialchars($invoiceAmount) ?>
+                      </div>
                     </div>
                   </div>
                 <?php else: ?>
