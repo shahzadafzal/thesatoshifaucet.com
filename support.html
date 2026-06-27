@@ -297,7 +297,9 @@
             <div class="meter-card blue">
                 <h3>Estimated claims remaining</h3>
                 <div class="metric-value" id="estimated-claims">—</div>
-                <div class="metric-note">Estimated claims based on ~100 sats + fees each.</div>
+                <div class="metric-note">
+    Every drip is different! The faucet randomly awards between <strong>10 and 100 sats</strong>.
+</div>
             </div>
             <div class="meter-card green">
                 <h3>Total sats paid</h3>
@@ -377,21 +379,46 @@
         <div class="card">
             <h2><span class="emoji-header">📊</span>Support the Faucet</h2>
             <p class="tiny">See how your support translate into claims and how your contribution helps others.</p>
+            
             <div class="highlight" style="margin-top:12px;">
-                Every 10,000 sats keeps the faucet running for about 97 more people.
+                Every <strong>10,000 sats</strong> keeps the faucet flowing for approximately <strong>178 more claims</strong>.
             </div>
+            <p class="tiny" style="margin-top:8px;">
+    * Based on the faucet's current weighted random rewards (10–100 sats, averaging about 50-55 sats per claim) plus typical Lightning routing fees of around 3–6 sats per payment. Actual results may vary slightly.
+</p>
+
             <h3 style="margin-top:12px;">Support amount</h3>
+
             <table aria-label="Support table">
                 <thead>
-                    <tr><th>Support amount</th><th>Meaning</th></tr>
+                    <tr>
+                        <th>Support amount</th>
+                        <th>Estimated impact</th>
+                    </tr>
                 </thead>
                 <tbody>
-                    <tr><td>10,000 sats</td><td>funds ~97 claims</td></tr>
-                    <tr><td>25,000 sats</td><td>funds ~240 claims</td></tr>
-                    <tr><td>50,000 sats</td><td>funds ~480 claims</td></tr>
-                    <tr><td>100,000 sats</td><td>funds ~970 claims</td></tr>
+                    <tr>
+                        <td>10,000 sats</td>
+                        <td>≈ 178 more claims</td>
+                    </tr>
+                    <tr>
+                        <td>25,000 sats</td>
+                        <td>≈ 446 more claims</td>
+                    </tr>
+                    <tr>
+                        <td>50,000 sats</td>
+                        <td>≈ 892 more claims</td>
+                    </tr>
+                    <tr>
+                        <td>100,000 sats</td>
+                        <td>≈ 1,785 more claims</td>
+                    </tr>
                 </tbody>
             </table>
+
+            <p class="tiny" style="margin-top:10px;">
+                * Estimates are based on the faucet's current weighted random rewards (10–100 sats) plus typical Lightning routing fees. Actual claim counts may vary slightly.
+            </p>
         </div>
 
         <div class="card">
@@ -559,7 +586,7 @@
             // per-claim costs
             const MIN_FEE = 3;
             const MAX_FEE = 10;
-            const BASE_PAYOUT = 100;
+            const BASE_PAYOUT = 56; // average payout (10–100 sats, weighted)
 
             function fmt(n) { return typeof n === 'number' ? n.toLocaleString() : n; }
 

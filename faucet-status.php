@@ -545,7 +545,7 @@ lightning faucet status
               <td class="invoice-cell">
                 <span><?php echo short_invoice($c['invoice']); ?></span>
                 <span class="tiny tiny-reason">
-                    <?php echo htmlspecialchars($c['receiver_domain'], ENT_QUOTES, 'UTF-8'); ?>
+                    <?php echo htmlspecialchars($c['receiver_domain'] ?? '', ENT_QUOTES, 'UTF-8'); ?>
                 </span>
             </td>
               <td>
@@ -553,7 +553,7 @@ lightning faucet status
                   <?php echo htmlspecialchars($statusText, ENT_QUOTES, 'UTF-8'); ?>
                 </span>
                 <span class="tiny tiny-reason">
-                    <?php echo htmlspecialchars($c['reason'], ENT_QUOTES, 'UTF-8'); ?>
+                    <?php echo htmlspecialchars($c['reason'] ?? '', ENT_QUOTES, 'UTF-8'); ?>
                 </span>
               </td>
               <td>

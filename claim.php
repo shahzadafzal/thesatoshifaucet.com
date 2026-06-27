@@ -268,7 +268,12 @@ try {
     $check = $pdo->prepare("
         SELECT invoice, ip_address, status, sats_sent, created_at
         FROM faucet_claims
-        WHERE invoice = :inv OR (ip_address = :ip AND 1=1)
+        WHERE created_at >= (NOW() - INTERVAL 7 DAY)
+        AND (
+                invoice = :inv
+                OR ip_address = :ip
+            )
+        ORDER BY created_at DESC
         LIMIT 1
     ");
     $check->execute([':inv' => $invoice, ':ip' => $userIp]);
@@ -276,8 +281,9 @@ try {
 
     if ($row) {
         $msg = ($row['status'] === 'paid')
-            ? 'You already claimed — sats were sent to your invoice.'
-            : 'You already have a request in progress. Please check back later.';
+            ? '🎉 You already claimed from this faucet within the last 7 days. Thank you for supporting the project! Please come back after 7 days for another chance to catch some sats. ⚡'
+            : '⏳ You already have a claim being processed. Please check back in a little while. If it completes successfully, you can claim again after 7 days.';
+
         echo json_encode([
             'status'        => 'already_claimed',
             'message'       => $msg,
