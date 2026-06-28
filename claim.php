@@ -180,29 +180,82 @@ curl_setopt_array($ch, [
 ]);
 $response = curl_exec($ch);
 
-//Google recaptcha log disabled
-// if ($response) {
-//     file_put_contents(
-//         __DIR__ . '/recaptcha-debug.log',
-//         "\n--------------------------------------------------\n" .
-//         date('c') .
-//         ' IP=' . $userIp .
-//         ' RESPONSE=' . $response . PHP_EOL,
-//         FILE_APPEND
-//     );
-// }
+// Google recaptcha log disabled
+if ($response) {
+    // file_put_contents(
+    //     __DIR__ . '/recaptcha-debug.log',
+    //     "\n--------------------------------------------------\n" .
+    //     date('c') .
+    //     ' IP=' . $userIp .
+    //     ' RESPONSE=' . $response . PHP_EOL,
+    //     FILE_APPEND
+    // );
+
+    file_put_contents(
+        __DIR__ . '/hcaptcha-debug.log',
+        "\n--------------------------------------------------\n" .
+        date('c') .
+        "\nIP=" . $userIp .
+        "\nUA=" . ($_SERVER['HTTP_USER_AGENT'] ?? '') .
+        "\nHCAPTCHA_RESPONSE=" . $response .
+        PHP_EOL,
+        FILE_APPEND
+    );
+}
 
 curl_close($ch);
+
+//$data = $response ? json_decode($response, true) : null;
+// if (!$data || empty($data['success'])) {
+//     echo json_encode(['status'=>'error','message'=>'CAPTCHA verification failed. Please try again.']); exit;
+// }
+
 $data = $response ? json_decode($response, true) : null;
 
-if (!$data || empty($data['success'])) {
-    echo json_encode(['status'=>'error','message'=>'CAPTCHA verification failed. Please try again.']); exit;
+$captchaSuccess = !empty($data['success']);
+$captchaHost    = strtolower($data['hostname'] ?? '');
+$challengeTs    = $data['challenge_ts'] ?? null;
+$errorCodes     = $data['error-codes'] ?? [];
+
+$challengeAgeSeconds = null;
+if ($challengeTs) {
+    $challengeTime = strtotime($challengeTs);
+    if ($challengeTime !== false) {
+        $challengeAgeSeconds = time() - $challengeTime;
+    }
+}
+
+if (
+    !$captchaSuccess ||
+    !in_array($captchaHost, $HCAPTCHA_ALLOWED_HOSTS, true) ||
+    $challengeAgeSeconds === null ||
+    $challengeAgeSeconds < 0 ||
+    $challengeAgeSeconds > $HCAPTCHA_MAX_TOKEN_AGE_SECONDS
+) {
+    if ($HCAPTCHA_DEBUG_LOG) {
+        file_put_contents(
+            __DIR__ . '/hcaptcha-debug.log',
+            "\n--------------------------------------------------\n" .
+            date('c') .
+            "\nIP=" . $userIp .
+            "\nHOST=" . $captchaHost .
+            "\nAGE_SECONDS=" . ($challengeAgeSeconds ?? 'null') .
+            "\nERROR_CODES=" . json_encode($errorCodes) .
+            "\nRAW_RESPONSE=" . $response . PHP_EOL,
+            FILE_APPEND
+        );
+    }
+
+    echo json_encode([
+        'status'  => 'error',
+        'message' => 'CAPTCHA verification failed. Please try again.'
+    ]);
+    exit;
 }
 
 // --- DB logic ---
 try {
     $pdo = get_pdo();
-
     
     // Check processing queue size and refuse new claims when full.
     // The limit is configurable via $MAX_PROCESSING_CLAIMS in config.local.php.
