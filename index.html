@@ -111,7 +111,7 @@ earn bitcoin free
               <input id="claim-source" name="claim_source" type="hidden" value="paste" />
               <button type="submit" class="btn-primary" id="get-button">Get Some!</button>
             </div>
-            <div id="cooldown-message" style="margin-top:10px; font-size:0.95rem; color:#b05a00; min-height:1.35em;"></div>
+            <div id="cooldown-message" style="white-space: pre-line; margin-top:10px; font-size:0.95rem; color:#b05a00; min-height:1.35em;"></div>
             <div class="status-message" id="status-message" aria-live="polite"></div>
             <a href="#" id="openPenaltyGame" class="fifa-game-btn">
                 ⚽ Play FIFA 2026 Penalty Challenge
@@ -373,7 +373,10 @@ earn bitcoin free
         if (seconds > 0) {
           getBtn.disabled = true;
           getBtn.textContent = 'Wait ' + formatCountdown(seconds);
-          cooldownMessageEl.textContent = 'Please wait another ' + formatCountdown(seconds) + ' before submitting next claim.';
+          cooldownMessageEl.textContent =
+            '⛏️ Next drip in ' + formatCountdown(seconds) + '\n\n' +
+            "Bitcoin's average block time is about 10 minutes.\n" +
+            'The Satoshi Faucet follows the same rhythm. See you after the next block! ⚡';
         } else {
           getBtn.disabled = false;
           getBtn.textContent = 'Get Some!';
