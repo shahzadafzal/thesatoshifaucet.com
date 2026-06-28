@@ -28,51 +28,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['captcha_config'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['cooldown_status'])) {
+    
     try {
         $pdo = get_pdo();
-
-        $remaining = get_global_cooldown_remaining_seconds($pdo);
-
+        $claimCooldownMinutes = isset($GLOBAL_CLAIM_COOLDOWN_MINUTES) ? (int)$GLOBAL_CLAIM_COOLDOWN_MINUTES : 10;
+        $remaining = 0;
+        if ($claimCooldownMinutes > 0) {
+            $cooldownStmt = $pdo->query(
+                "SELECT TIMESTAMPDIFF(SECOND, MAX(created_at), NOW()) AS seconds_since_last FROM faucet_claims"
+            );
+            $cooldownRow = $cooldownStmt->fetch();
+            if ($cooldownRow && $cooldownRow['seconds_since_last'] !== null) {
+                $secondsSinceLast = max(0, (int)$cooldownRow['seconds_since_last']);
+                $required = $claimCooldownMinutes * 60;
+                if ($secondsSinceLast < $required) {
+                    $remaining = $required - $secondsSinceLast;
+                }
+            }
+        }
         echo json_encode([
             'ok' => true,
             'remaining_seconds' => $remaining,
         ]);
     } catch (Throwable $e) {
-        echo json_encode([
-            'ok' => false,
-            'remaining_seconds' => 0,
-        ]);
+        echo json_encode(['ok' => false]);
     }
     exit;
 }
-
-// if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['cooldown_status'])) {    
-//     try {
-//         $pdo = get_pdo();
-//         $claimCooldownMinutes = isset($GLOBAL_CLAIM_COOLDOWN_MINUTES) ? (int)$GLOBAL_CLAIM_COOLDOWN_MINUTES : 10;
-//         $remaining = 0;
-//         if ($claimCooldownMinutes > 0) {
-//             $cooldownStmt = $pdo->query(
-//                 "SELECT TIMESTAMPDIFF(SECOND, MAX(created_at), NOW()) AS seconds_since_last FROM faucet_claims"
-//             );
-//             $cooldownRow = $cooldownStmt->fetch();
-//             if ($cooldownRow && $cooldownRow['seconds_since_last'] !== null) {
-//                 $secondsSinceLast = max(0, (int)$cooldownRow['seconds_since_last']);
-//                 $required = $claimCooldownMinutes * 60;
-//                 if ($secondsSinceLast < $required) {
-//                     $remaining = $required - $secondsSinceLast;
-//                 }
-//             }
-//         }
-//         echo json_encode([
-//             'ok' => true,
-//             'remaining_seconds' => $remaining,
-//         ]);
-//     } catch (Throwable $e) {
-//         echo json_encode(['ok' => false]);
-//     }
-//     exit;
-// }
 
 // --- helper: connect to DB ---
 function get_pdo(): PDO {
@@ -85,134 +67,6 @@ function get_pdo(): PDO {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
     return $pdo;
-}
-
-function get_setting_int(PDO $pdo, string $name, int $default): int {
-    try {
-        $stmt = $pdo->prepare("SELECT setting_value FROM faucet_settings WHERE setting_name = :name LIMIT 1");
-        $stmt->execute([':name' => $name]);
-        $value = $stmt->fetchColumn();
-
-        if ($value === false || $value === null || $value === '') {
-            return $default;
-        }
-
-        return (int)$value;
-    } catch (Throwable $e) {
-        return $default;
-    }
-}
-
-function get_cooldown_range_seconds(PDO $pdo): array {
-    global $GLOBAL_CLAIM_COOLDOWN_MIN_SECONDS, $GLOBAL_CLAIM_COOLDOWN_MAX_SECONDS, $GLOBAL_CLAIM_COOLDOWN_MINUTES;
-
-    // Backward-compatible fallback: old 10-minute config.
-    $oldDefaultSeconds = isset($GLOBAL_CLAIM_COOLDOWN_MINUTES)
-        ? max(0, (int)$GLOBAL_CLAIM_COOLDOWN_MINUTES * 60)
-        : 600;
-
-    $defaultMin = isset($GLOBAL_CLAIM_COOLDOWN_MIN_SECONDS)
-        ? (int)$GLOBAL_CLAIM_COOLDOWN_MIN_SECONDS
-        : max(0, $oldDefaultSeconds - 60); // default 9 minutes if old value is 10
-
-    $defaultMax = isset($GLOBAL_CLAIM_COOLDOWN_MAX_SECONDS)
-        ? (int)$GLOBAL_CLAIM_COOLDOWN_MAX_SECONDS
-        : max($defaultMin, $oldDefaultSeconds + 60); // default 11 minutes if old value is 10
-
-    // DB overrides. Values are seconds.
-    $min = get_setting_int($pdo, 'global_cooldown_min_seconds', $defaultMin);
-    $max = get_setting_int($pdo, 'global_cooldown_max_seconds', $defaultMax);
-
-    $min = max(0, $min);
-    $max = max(0, $max);
-
-    if ($max < $min) {
-        $max = $min;
-    }
-
-    return [$min, $max];
-}
-
-// function get_global_cooldown_remaining_seconds(PDO $pdo): int {
-//     [$minCooldownSeconds, $maxCooldownSeconds] = get_cooldown_range_seconds($pdo);
-
-//     if ($maxCooldownSeconds <= 0) {
-//         return 0;
-//     }
-
-//     $stmt = $pdo->query("
-//         SELECT created_at,
-//                COALESCE(cooldown_seconds, {$maxCooldownSeconds}) AS cooldown_seconds
-//         FROM faucet_claims
-//         ORDER BY created_at DESC
-//         LIMIT 1
-//     ");
-
-//     $row = $stmt->fetch();
-//     if (!$row) {
-//         return 0;
-//     }
-
-//     $createdAt = strtotime((string)$row['created_at']);
-//     if ($createdAt === false) {
-//         return 0;
-//     }
-
-//     $requiredSeconds = max(0, (int)$row['cooldown_seconds']);
-//     $elapsedSeconds = max(0, time() - $createdAt);
-
-//     return max(0, $requiredSeconds - $elapsedSeconds);
-// }
- 
-function get_global_cooldown_remaining_seconds(PDO $pdo): int {
-    [$minCooldownSeconds, $maxCooldownSeconds] = get_cooldown_range_seconds($pdo);
-
-    if ($maxCooldownSeconds <= 0) {
-        return 0;
-    }
-
-    $stmt = $pdo->query("
-        SELECT
-            created_at,
-            cooldown_seconds,
-            TIMESTAMPDIFF(SECOND, created_at, NOW()) AS elapsed_seconds
-        FROM faucet_claims
-        ORDER BY created_at DESC
-        LIMIT 1
-    ");
-
-    $row = $stmt->fetch();
-    if (!$row) {
-        return 0;
-    }
-
-    $elapsedSeconds = max(0, (int)$row['elapsed_seconds']);
-
-    if ($row['cooldown_seconds'] !== null && $row['cooldown_seconds'] !== '') {
-        $requiredSeconds = max(0, (int)$row['cooldown_seconds']);
-    } else {
-        // For old rows where cooldown_seconds is NULL,
-        // use the normal fixed cooldown from config.
-        $requiredSeconds = isset($GLOBALS['GLOBAL_CLAIM_COOLDOWN_MINUTES'])
-            ? max(0, (int)$GLOBALS['GLOBAL_CLAIM_COOLDOWN_MINUTES'] * 60)
-            : 600;
-    }
-
-    return max(0, $requiredSeconds - $elapsedSeconds);
-}
-
-function create_claim_cooldown_seconds(PDO $pdo): int {
-    [$minCooldownSeconds, $maxCooldownSeconds] = get_cooldown_range_seconds($pdo);
-
-    if ($maxCooldownSeconds <= 0) {
-        return 0;
-    }
-
-    if ($minCooldownSeconds === $maxCooldownSeconds) {
-        return $minCooldownSeconds;
-    }
-
-    return random_int($minCooldownSeconds, $maxCooldownSeconds);
 }
 
 function classify_lightning_target(string $value): ?array {
@@ -424,22 +278,31 @@ try {
         exit;
     }
 
-    // Global cooldown between claims.
-    // The actual delay is stored per claim in cooldown_seconds, so bots cannot rely on exactly 10 minutes.
-    $remaining = get_global_cooldown_remaining_seconds($pdo);
-    if ($remaining > 0) {
-        $minutes = floor($remaining / 60);
-        $seconds = $remaining % 60;
-        $waitText = $minutes > 0
-            ? sprintf('%d minute%s and %d second%s', $minutes, $minutes === 1 ? '' : 's', $seconds, $seconds === 1 ? '' : 's')
-            : sprintf('%d second%s', $seconds, $seconds === 1 ? '' : 's');
+    // Global cooldown between claims (minutes).
+    $claimCooldownMinutes = isset($GLOBAL_CLAIM_COOLDOWN_MINUTES) ? (int) $GLOBAL_CLAIM_COOLDOWN_MINUTES : 10;
+    if ($claimCooldownMinutes > 0) {
+        $cooldownStmt = $pdo->query(
+            "SELECT TIMESTAMPDIFF(SECOND, MAX(created_at), NOW()) AS seconds_since_last FROM faucet_claims"
+        );
+        $cooldownRow = $cooldownStmt->fetch();
+        if ($cooldownRow && $cooldownRow['seconds_since_last'] !== null) {
+            $secondsSinceLast = max(0, (int) $cooldownRow['seconds_since_last']);
+            $requiredDelay = $claimCooldownMinutes * 60;
+            if ($secondsSinceLast < $requiredDelay) {
+                $remaining = $requiredDelay - $secondsSinceLast;
+                $minutes = floor($remaining / 60);
+                $seconds = $remaining % 60;
+                $waitText = $minutes > 0
+                    ? sprintf('%d minute%s and %d second%s', $minutes, $minutes === 1 ? '' : 's', $seconds, $seconds === 1 ? '' : 's')
+                    : sprintf('%d second%s', $seconds, $seconds === 1 ? '' : 's');
 
-        echo json_encode([
-            'status'  => 'cooldown',
-            'message' => '⛏️ Next drip in ' . $waitText . '. Bitcoin\'s average block time is about 10 minutes. See you after the next block! ⚡',
-            'remaining_seconds' => $remaining,
-        ]);
-        exit;
+                echo json_encode([
+                    'status'  => 'cooldown',
+                    'message' => 'Please wait another ' . $waitText . ' before submitting a new claim.',
+                ]);
+                exit;
+            }
+        }
     }
 
     // Use configurable reward from config.local.php; fall back to 100 sats.
@@ -505,20 +368,20 @@ try {
         exit;
     }
 
-    $claimCooldownSeconds = create_claim_cooldown_seconds($pdo);
+
+    
 
     $ins = $pdo->prepare("
-        INSERT INTO faucet_claims (invoice, ip_address, sats_requested, status, user_agent, payment_type, claim_source, cooldown_seconds)
-        VALUES (:inv, :ip, :sats, 'pending', :ua, 'lnurl', :source, :cooldown_seconds)
+        INSERT INTO faucet_claims (invoice, ip_address, sats_requested, status, user_agent, payment_type, claim_source)
+        VALUES (:inv, :ip, :sats, 'pending', :ua, 'lnurl', :source)
     ");
 
     $ins->execute([
-        ':inv'              => $invoice,
-        ':ip'               => $userIp,
-        ':sats'             => $reward,
-        ':ua'               => $userAgent,
-        ':source'           => $claimSource,
-        ':cooldown_seconds' => $claimCooldownSeconds,
+        ':inv'    => $invoice,
+        ':ip'     => $userIp,
+        ':sats'   => $reward,
+        ':ua'     => $userAgent,
+        ':source' => $claimSource,
     ]);
 
     // Deduct balance
