@@ -107,7 +107,16 @@ earn bitcoin free
 
             <div class="address-row">
               <label for="address-input">Your LNURL-pay address:</label>
-              <input id="address-input" name="address" type="text" placeholder="LNURL (starting with lnurl1...)" />
+              
+              <input
+                id="address-input"
+                name="address"
+                type="text"
+                placeholder="LNURL (starting with lnurl1...)"
+                tabindex="-1"
+                autocomplete="off"
+              >
+              <input type="hidden" id="human-unlocked" name="human_unlocked" value="0">
               <input id="claim-source" name="claim_source" type="hidden" value="paste" />
               <button type="submit" class="btn-primary" id="get-button">Get Some!</button>
             </div>
@@ -822,6 +831,24 @@ earn bitcoin free
         }
       });
     })();
+  </script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const input = document.getElementById("address-input");
+        const humanUnlocked = document.getElementById("human-unlocked");
+
+        function unlockAddressInput(e) {
+            if (!e.isTrusted) return;
+
+            input.removeAttribute("readonly");
+            input.setAttribute("tabindex", "0");
+            humanUnlocked.value = "1";
+
+            setTimeout(() => input.focus(), 50);
+        }
+
+        input.addEventListener("pointerdown", unlockAddressInput);
+    });
   </script>
 </body>
 

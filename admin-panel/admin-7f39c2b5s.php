@@ -285,7 +285,7 @@ if ($filterLast24) {
 
 $sql = "
     SELECT id, invoice, ip_address, sats_requested, sats_sent, status, tx_reference, created_at, 
-    updated_at, reason, receiver_domain, admin_status, pay_bolt11, claim_source
+    updated_at, reason, receiver_domain, admin_status, pay_bolt11, claim_source, lnurl_host, lnurl_full_url, lnurl_username
     FROM faucet_claims
 ";
 
@@ -515,6 +515,10 @@ $processingCount  = (int)$stmt->fetchColumn();
     .tiny {
       font-size: 0.8rem;
       color: #666;
+    }
+
+    .tinyblock {
+      display: block;
     }
 
     @media (max-width: 720px) {
@@ -825,7 +829,8 @@ $processingCount  = (int)$stmt->fetchColumn();
                 <?php } ?>
 
                 <span><?php echo htmlspecialchars($c['ip_address'], ENT_QUOTES, 'UTF-8'); ?></span>
-                <span class="tiny"><?php echo $c['receiver_domain']; ?></span>
+                <span class="tiny tinyblock"><?php echo $c['receiver_domain']; ?> (<?php echo $c['lnurl_username']; ?>)</span>
+                <span class="tiny tinyblock"><a target="_blank" href="<?php echo htmlspecialchars($c['lnurl_full_url'], ENT_QUOTES, 'UTF-8'); ?>" rel="noopener noreferrer"><?php echo htmlspecialchars($c['lnurl_full_url'], ENT_QUOTES, 'UTF-8'); ?></a></span>
               </td>
               <td>
                 <div>Req: <?php echo number_format((int)$c['sats_requested']); ?> sats</div>

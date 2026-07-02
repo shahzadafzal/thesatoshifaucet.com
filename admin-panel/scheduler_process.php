@@ -309,6 +309,45 @@ function lnurl_extract_domain(string $lnurl): string {
     return $host;
 }
 
+function lnurl_extract_info(string $lnurl): array
+{
+    $url = lnurl_to_url($lnurl); // already validates checksum + decodes
+
+    $parts = parse_url($url);
+
+    $host = strtolower(trim($parts['host'] ?? ''));
+    $host = rtrim($host, '.');
+
+    if ($host === '') {
+        throw new RuntimeException("LNURL decoded but domain missing");
+    }
+
+    $path = $parts['path'] ?? '';
+    $username = '';
+
+    if ($path !== '') {
+        // Standard Lightning Address format:
+        // https://domain.com/.well-known/lnurlp/username
+        if (preg_match('~/\.well-known/lnurlp/([^/?#]+)~i', $path, $m)) {
+            $username = rawurldecode($m[1]);
+        } else {
+            // Fallback for providers using custom paths:
+            // https://domain.com/pay/username
+            $segments = array_values(array_filter(explode('/', trim($path, '/'))));
+
+            if (!empty($segments)) {
+                $username = rawurldecode(end($segments));
+            }
+        }
+    }
+
+    return [
+        'lnurl_full_url'  => $url,
+        'lnurl_host'      => $host,
+        'lnurl_username'  => $username,
+    ];
+}
+
 /** ---------------------------
  * PAY step (example: LNbits)
  * You can swap this out later.
@@ -736,11 +775,33 @@ for ($i = 0; $i < $BATCH; $i++) {
 
         $lnurl = trim((string)$row['invoice']);                
 
-         // Store decoded domain for sanity
+        // Store decoded domain for sanity
         $domain = lnurl_extract_domain($lnurl);
 
-        $pdo->prepare("UPDATE faucet_claims SET receiver_domain=:d WHERE id=:id")
-            ->execute([':d' => $domain, ':id' => $id]);
+        try {
+            $info = lnurl_extract_info($lnurl);
+            
+            $pdo->prepare("
+                UPDATE faucet_claims
+                SET
+                    receiver_domain = :domain,
+                    lnurl_full_url = :full_url,
+                    lnurl_host = :host,
+                    lnurl_username = :username
+                WHERE id = :id
+                ")->execute([
+                    ':domain'   => $domain,
+                    ':full_url' => $info['lnurl_full_url'],
+                    ':host'     => $info['lnurl_host'],
+                    ':username' => $info['lnurl_username'],
+                    ':id'       => $id,
+            ]);            
+        } catch (Throwable $e) {
+            echo "LNURL extract failed for claim ID {$id}: " . $e->getMessage() . "\n";
+        }
+
+       // $pdo->prepare("UPDATE faucet_claims SET receiver_domain=:d WHERE id=:id")
+       //     ->execute([':d' => $domain, ':id' => $id]);
 
         // --- Step B: LNURL validate + invoice request ---
         echo "Row #{$id} PROCESSING: LNURL={$lnurl}, domain={$domain}\n";
