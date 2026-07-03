@@ -407,7 +407,7 @@ lightning faucet status
     font-weight: 600;
   }
 
-  .recent-activity-table td:nth-child(5),
+  .recent-activity-table td:nth-child(55),
   .recent-activity-table td:nth-child(6) {
     display: none;
   }
@@ -543,13 +543,23 @@ lightning faucet status
             <tr>
               <td><?php echo (int)$c['id']; ?></td>
               <td class="invoice-cell">
+                <span class="recent-invoice-icon">⚡</span>
                 <span><?php echo short_invoice($c['invoice']); ?></span>
                 <span class="tiny tiny-reason">
-                    <?php echo htmlspecialchars($c['receiver_domain'] ?? '', ENT_QUOTES, 'UTF-8'); ?>
+                    🌐<?php echo htmlspecialchars($c['receiver_domain'] ?? '', ENT_QUOTES, 'UTF-8'); ?>
                 </span>
             </td>
               <td>
                 <span class="status-pill <?php echo htmlspecialchars($statusClass, ENT_QUOTES, 'UTF-8'); ?>">
+                  <?php
+                    echo match ($statusText) {
+                        'Blocked', 'Failed' => '⚠️',
+                        'Queued'            => '🕒',
+                        'Processing'        => '⏳',
+                        'Paid'              => '✅',
+                        default             => ''
+                    };
+                  ?>
                   <?php echo htmlspecialchars($statusText, ENT_QUOTES, 'UTF-8'); ?>
                 </span>
                 <span class="tiny tiny-reason">
@@ -557,11 +567,11 @@ lightning faucet status
                 </span>
               </td>
               <td>
-                <div>Requested: <?php echo number_format((int)$c['sats_requested']); ?> sats</div>
-                <div>Sent: <?php echo number_format((int)$c['sats_sent']); ?> sats</div>
+                <div>Requested:🪙 <?php echo number_format((int)$c['sats_requested']); ?> sats</div>
+                <div>Sent:🪙 <?php echo number_format((int)$c['sats_sent']); ?> sats</div>
               </td>
-              <td><?php echo htmlspecialchars($c['created_at'], ENT_QUOTES, 'UTF-8'); ?></td>
-              <td><?php echo htmlspecialchars($c['updated_at'], ENT_QUOTES, 'UTF-8'); ?></td>
+              <td>📆<?php echo htmlspecialchars($c['created_at'], ENT_QUOTES, 'UTF-8'); ?></td>
+              <td>📆<?php echo htmlspecialchars($c['updated_at'], ENT_QUOTES, 'UTF-8'); ?></td>
             </tr>
           <?php endforeach; ?>
           </tbody>

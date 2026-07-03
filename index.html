@@ -832,6 +832,19 @@ earn bitcoin free
       });
     })();
   </script>
+
+  <!-- Small centered support bar (fixed at bottom) -->
+  <style>
+    .support-bar{left:0;right:0;bottom:0;display:flex;justify-content:center;align-items:center;padding:6px 10px;background:rgba(255,255,255,0.95);border-top:1px solid #e6e6e6;font-size:0.82rem;z-index:9999}
+    .support-bar .donation-address{font-family:"SFMono-Regular",Menlo,Monaco,monospace;background:#fff;padding:4px 8px;border:1px solid #ddd;border-radius:6px;margin:0 6px;word-break:break-all;color:#333}
+    @media(max-width:680px){.support-bar{font-size:0.78rem;padding:8px;flex-direction:column;gap:6px}.support-bar .donation-address{display:block;margin:0}}
+  </style>
+
+  <div class="support-bar" role="contentinfo" aria-label="Support the faucet">
+    Support the faucet:
+    <div class="donation-address">Bitcoin: bc1q3edrccaqc8dkm76jkjjp7cwdg57qhnx8e5thkg</div>
+    <div class="donation-address">Lightning (LNURL): lnurl1dp68gurn8ghj7ampd3kx2ar0veekzar0wd5xjtnrdakj7tnhv4kxctttdehhwm30d3h82unvwqhk5mmzd3jhxumvdamx2desxq5etrcc</div>
+  </div>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
         const input = document.getElementById("address-input");
