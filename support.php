@@ -18,7 +18,7 @@ if ($html === false) {
 }
 
 // Replace the static LNURL and BTC addresses if present (simple string replace)
-$html = str_replace('lnurl1dp68gurn8ghj7ampd3kx2ar0veekzar0wd5xjtnrdakj7tnhv4kxctttdehhwm30d3h82unvwqhk5mmzd3jhxumvdamx2desxq5etrcc', htmlspecialchars($DONATION_LNURL, ENT_QUOTES, 'UTF-8'), $html);
+$html = str_replace('lnurl1dp68gurn8ghj7ampd3kx2ar0veekzar0wd5xjtnrdakj7tnhv4kxctttdehhwm30d3h82unvwqhhx6rpdpaxzerpveaxzmq3nwuvu', htmlspecialchars($DONATION_LNURL, ENT_QUOTES, 'UTF-8'), $html);
 $html = str_replace('bc1q3edrccaqc8dkm76jkjjp7cwdg57qhnx8e5thkg', htmlspecialchars($DONATION_BTC, ENT_QUOTES, 'UTF-8'), $html);
 
 echo $html;

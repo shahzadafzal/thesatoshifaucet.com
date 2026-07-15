@@ -177,6 +177,7 @@ function get_global_cooldown_remaining_seconds(PDO $pdo): int {
             cooldown_seconds,
             TIMESTAMPDIFF(SECOND, created_at, NOW()) AS elapsed_seconds
         FROM faucet_claims
+        WHERE status IN ('paid', 'processing', 'pending')
         ORDER BY created_at DESC
         LIMIT 1
     ");
@@ -459,6 +460,7 @@ try {
         SELECT invoice, ip_address, status, sats_sent, created_at
         FROM faucet_claims
         WHERE created_at >= (NOW() - INTERVAL 7 DAY)
+        AND Status IN ('paid', 'processing', 'pending')
         AND (
                 invoice = :inv
                 OR ip_address = :ip
