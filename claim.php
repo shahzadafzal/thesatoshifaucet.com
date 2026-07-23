@@ -468,6 +468,7 @@ try {
         ORDER BY created_at DESC
         LIMIT 1
     ");
+    // Execute the query with the provided invoice and user IP
     $check->execute([':inv' => $invoice, ':ip' => $userIp]);
     $row = $check->fetch();
 
