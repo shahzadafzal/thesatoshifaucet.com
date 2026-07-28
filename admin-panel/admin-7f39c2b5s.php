@@ -231,6 +231,111 @@ if (isset($_GET['filter_sort'])) {
   }
 }
 
+// --- Advanced search: wildcard (IP / lnurl_username / domain-host) + date range + stat_n ---
+$searchIp        = trim((string)($_GET['search_ip'] ?? $_POST['search_ip'] ?? ''));
+$searchLnurlUser = trim((string)($_GET['search_lnurl_user'] ?? $_POST['search_lnurl_user'] ?? ''));
+$searchDomain    = trim((string)($_GET['search_domain'] ?? $_POST['search_domain'] ?? ''));
+$dateFrom        = trim((string)($_GET['date_from'] ?? $_POST['date_from'] ?? ''));
+$dateTo          = trim((string)($_GET['date_to'] ?? $_POST['date_to'] ?? ''));
+
+$statN = 50;
+if (isset($_GET['stat_n'])) {
+    $statN = max(1, min(500, (int)$_GET['stat_n']));
+} elseif (isset($_POST['stat_n'])) {
+    $statN = max(1, min(500, (int)$_POST['stat_n']));
+}
+
+// Translate a user-typed '*' wildcard into a safe, parameterized SQL LIKE pattern.
+// Any literal backslash/percent/underscore the user typed is escaped first, so only
+// an actual '*' becomes a wildcard. No '*' typed => pattern has no '%' => exact match.
+// Returns null when the input is empty (caller should add no WHERE condition).
+function wildcard_like_param(string $input): ?string {
+    $input = trim($input);
+    if ($input === '') {
+        return null;
+    }
+    $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $input);
+    return str_replace('*', '%', $escaped);
+}
+
+// Validate a datetime-local ("Y-m-d\TH:i") string; returns null if empty/invalid.
+function parse_datetime_local(string $input): ?string {
+    $input = trim($input);
+    if ($input === '') {
+        return null;
+    }
+    $dt = DateTime::createFromFormat('Y-m-d\TH:i', $input);
+    if (!$dt || $dt->format('Y-m-d\TH:i') !== $input) {
+        return null;
+    }
+    return $dt->format('Y-m-d H:i:00');
+}
+
+// Build the shared WHERE clause + bound params for the claims filters, reused by both
+// the row-fetch query (with LIMIT) and the "current filter totals" aggregate query.
+function build_claims_filter(
+    array $filterStatuses,
+    array $allowedStatuses,
+    bool $filterLast24,
+    string $dateFrom,
+    string $dateTo,
+    ?string $ipLike,
+    ?string $lnurlUserLike,
+    ?string $domainLike
+): array {
+    $where = [];
+    $params = [];
+
+    if ($filterStatuses !== [] && count($filterStatuses) !== count($allowedStatuses)) {
+        $placeholders = [];
+        foreach ($filterStatuses as $idx => $status) {
+            $key = ":fstatus{$idx}";
+            $placeholders[] = $key;
+            $params[$key] = $status;
+        }
+        $where[] = "status IN (" . implode(", ", $placeholders) . ")";
+    }
+
+    // Custom date range takes precedence over the "last 24h" checkbox when supplied.
+    $from = parse_datetime_local($dateFrom);
+    $to   = parse_datetime_local($dateTo);
+    if ($from !== null && $to !== null && $from > $to) {
+        // Reversed range: ignore both rather than erroring or guessing intent.
+        $from = null;
+        $to = null;
+    }
+
+    if ($from !== null || $to !== null) {
+        if ($from !== null) {
+            $where[] = "created_at >= :date_from";
+            $params[':date_from'] = $from;
+        }
+        if ($to !== null) {
+            $where[] = "created_at <= :date_to";
+            $params[':date_to'] = $to;
+        }
+    } elseif ($filterLast24) {
+        $where[] = "created_at >= (NOW() - INTERVAL 1 DAY)";
+    }
+
+    if ($ipLike !== null) {
+        $where[] = "ip_address LIKE :search_ip ESCAPE '\\\\'";
+        $params[':search_ip'] = $ipLike;
+    }
+
+    if ($lnurlUserLike !== null) {
+        $where[] = "lnurl_username LIKE :search_lnurl_user ESCAPE '\\\\'";
+        $params[':search_lnurl_user'] = $lnurlUserLike;
+    }
+
+    if ($domainLike !== null) {
+        $where[] = "(receiver_domain LIKE :search_domain ESCAPE '\\\\' OR lnurl_host LIKE :search_domain ESCAPE '\\\\')";
+        $params[':search_domain'] = $domainLike;
+    }
+
+    return ['where' => $where, 'params' => $params];
+}
+
 // --- Handle status + sats_sent + tx_reference update ---
 $updateMessage = '';
 if (isset($_POST['update_status'])) {
@@ -266,25 +371,26 @@ if (isset($_POST['update_status'])) {
 
 // --- Fetch filtered claims ---
 $limit = $filterLimit;
-$where = [];
-$params = [];
 
-if ($filterStatuses !== [] && count($filterStatuses) !== count($allowedStatuses)) {
-    $placeholders = [];
-    foreach ($filterStatuses as $idx => $status) {
-        $key = ":fstatus{$idx}";
-        $placeholders[] = $key;
-        $params[$key] = $status;
-    }
-    $where[] = "status IN (" . implode(", ", $placeholders) . ")";
-}
+$ipLike        = wildcard_like_param($searchIp);
+$lnurlUserLike = wildcard_like_param($searchLnurlUser);
+$domainLike    = wildcard_like_param($searchDomain);
 
-if ($filterLast24) {
-    $where[] = "created_at >= (NOW() - INTERVAL 1 DAY)";
-}
+$filter = build_claims_filter(
+    $filterStatuses,
+    $allowedStatuses,
+    $filterLast24,
+    $dateFrom,
+    $dateTo,
+    $ipLike,
+    $lnurlUserLike,
+    $domainLike
+);
+$where = $filter['where'];
+$params = $filter['params'];
 
 $sql = "
-    SELECT id, invoice, ip_address, sats_requested, sats_sent, status, tx_reference, created_at, 
+    SELECT id, invoice, ip_address, sats_requested, sats_sent, status, tx_reference, created_at,
     updated_at, reason, receiver_domain, admin_status, pay_bolt11, claim_source, lnurl_host, lnurl_full_url, lnurl_username
     FROM faucet_claims
 ";
@@ -303,14 +409,65 @@ $claimsStmt->bindValue(':lim', $limit, PDO::PARAM_INT);
 $claimsStmt->execute();
 $claims = $claimsStmt->fetchAll();
 
-
-
+// Totals across ALL rows matching the current filters (not capped by $filterLimit).
+$filterTotalSats = 0;
+$filterTotalRows = 0;
+$totalsSql = "SELECT COALESCE(SUM(sats_sent),0) AS total_sent, COUNT(*) AS row_count FROM faucet_claims";
+if ($where) {
+    $totalsSql .= " WHERE " . implode(" AND ", $where);
+}
+$totalsStmt = $pdo->prepare($totalsSql);
+foreach ($params as $k => $v) {
+    $totalsStmt->bindValue($k, $v);
+}
+$totalsStmt->execute();
+$totalsRow = $totalsStmt->fetch();
+if ($totalsRow) {
+    $filterTotalSats = (int)$totalsRow['total_sent'];
+    $filterTotalRows = (int)$totalsRow['row_count'];
+}
 
 $processingCount = 0;
 $stmt = $pdo->query(
     "SELECT COUNT(*) FROM faucet_claims WHERE status = 'processing'"
 );
 $processingCount  = (int)$stmt->fetchColumn();
+
+// --- Always-visible stats, independent of the admin's active filters ---
+
+// (a) Paid in the last 24 hours.
+$paid24hSats = 0;
+$paid24hCount = 0;
+$stmt = $pdo->query(
+    "SELECT COALESCE(SUM(sats_sent),0) AS total_sent, COUNT(*) AS paid_count
+     FROM faucet_claims
+     WHERE status = 'paid' AND updated_at >= (NOW() - INTERVAL 1 DAY)"
+);
+$row = $stmt->fetch();
+if ($row) {
+    $paid24hSats = (int)$row['total_sent'];
+    $paid24hCount = (int)$row['paid_count'];
+}
+
+// (b) Paid across the last N paid transactions (N = $statN, admin-adjustable).
+$paidLastNSats = 0;
+$paidLastNCount = 0;
+$stmt = $pdo->prepare(
+    "SELECT COALESCE(SUM(sats_sent),0) AS total_sent, COUNT(*) AS paid_count
+     FROM (
+         SELECT sats_sent FROM faucet_claims
+         WHERE status = 'paid'
+         ORDER BY updated_at DESC
+         LIMIT :n
+     ) AS t"
+);
+$stmt->bindValue(':n', $statN, PDO::PARAM_INT);
+$stmt->execute();
+$row = $stmt->fetch();
+if ($row) {
+    $paidLastNSats = (int)$row['total_sent'];
+    $paidLastNCount = (int)$row['paid_count'];
+}
 
 ?>
 <!DOCTYPE html>
@@ -427,6 +584,53 @@ $processingCount  = (int)$stmt->fetchColumn();
       border-radius: 4px;
       border: 1px solid #ccc;
       font-size: 0.85rem;
+    }
+
+    .filter-text {
+      width: 130px;
+      padding: 4px 6px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      font-size: 0.85rem;
+    }
+
+    .filter-datetime {
+      padding: 3px 5px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      font-size: 0.82rem;
+    }
+
+    .stat-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .stat-card {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    .stat-card strong {
+      color: #1a7f37;
+    }
+
+    .stat-card form {
+      display: inline;
+    }
+
+    .stat-n-input {
+      width: 55px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      font-size: 0.8rem;
     }
 
     .filter-button {
@@ -675,6 +879,18 @@ $processingCount  = (int)$stmt->fetchColumn();
       <div class="message"><?php echo htmlspecialchars($updateMessage, ENT_QUOTES, 'UTF-8'); ?></div>
     <?php endif; ?>
 
+    <!-- ===== Paid-sats stat bar (independent of the filters below) ===== -->
+    <div class="stat-bar">
+      <div class="stat-card">
+        &#9889; Paid last 24h: <strong><?php echo number_format($paid24hSats); ?> sats</strong>
+        across <?php echo number_format($paid24hCount); ?> claims
+      </div>
+      <div class="stat-card">
+        Paid last <?php echo (int)$statN; ?> transactions: <strong><?php echo number_format($paidLastNSats); ?> sats</strong>
+        (<?php echo number_format($paidLastNCount); ?> found &mdash; change "Paid stat N" below and Apply)
+      </div>
+    </div>
+
     <!-- ===== Run Scheduler Panel ===== -->
     <div class="scheduler-bar">
       <button id="run-scheduler-btn" class="run-scheduler-btn" onclick="runScheduler()">
@@ -727,6 +943,35 @@ $processingCount  = (int)$stmt->fetchColumn();
             </label>
           <?php endforeach; ?>
         </div>
+
+        <label>
+          IP (use * as wildcard):
+          <input type="text" name="search_ip" class="filter-text" placeholder="e.g. 91.108.*"
+                 value="<?php echo htmlspecialchars($searchIp, ENT_QUOTES, 'UTF-8'); ?>" />
+        </label>
+        <label>
+          LNURL username:
+          <input type="text" name="search_lnurl_user" class="filter-text" placeholder="e.g. *satoshi*"
+                 value="<?php echo htmlspecialchars($searchLnurlUser, ENT_QUOTES, 'UTF-8'); ?>" />
+        </label>
+        <label>
+          Domain/host:
+          <input type="text" name="search_domain" class="filter-text" placeholder="e.g. *.wallet.com"
+                 value="<?php echo htmlspecialchars($searchDomain, ENT_QUOTES, 'UTF-8'); ?>" />
+        </label>
+
+        <label>
+          From:
+          <input type="datetime-local" name="date_from" class="filter-datetime"
+                 value="<?php echo htmlspecialchars($dateFrom, ENT_QUOTES, 'UTF-8'); ?>" />
+        </label>
+        <label>
+          To:
+          <input type="datetime-local" name="date_to" class="filter-datetime"
+                 value="<?php echo htmlspecialchars($dateTo, ENT_QUOTES, 'UTF-8'); ?>" />
+        </label>
+        <span class="tiny">(server time; overrides "Only last 24h" when set)</span>
+
         <label>
           Show
           <input type="number" name="filter_limit" class="filter-count" min="1" max="500" step="1"
@@ -744,6 +989,11 @@ $processingCount  = (int)$stmt->fetchColumn();
           <input type="checkbox" name="filter_last24" value="1" class="filter-checkbox"
                  <?php if ($filterLast24) echo 'checked'; ?> />
           Only last 24h
+        </label>
+        <label>
+          Paid stat N:
+          <input type="number" name="stat_n" class="stat-n-input" min="1" max="500" step="1"
+                 value="<?php echo (int)$statN; ?>" />
         </label>
         <button type="submit" class="filter-button">Apply</button>
       </form>
@@ -843,6 +1093,12 @@ $processingCount  = (int)$stmt->fetchColumn();
                   <input type="hidden" name="filter_last24" value="<?php echo $filterLast24 ? '1' : '0'; ?>" />
                   <input type="hidden" name="filter_limit" value="<?php echo (int)$filterLimit; ?>" />
                   <input type="hidden" name="filter_sort" value="<?php echo htmlspecialchars($filterSort, ENT_QUOTES, 'UTF-8'); ?>" />
+                  <input type="hidden" name="search_ip" value="<?php echo htmlspecialchars($searchIp, ENT_QUOTES, 'UTF-8'); ?>" />
+                  <input type="hidden" name="search_lnurl_user" value="<?php echo htmlspecialchars($searchLnurlUser, ENT_QUOTES, 'UTF-8'); ?>" />
+                  <input type="hidden" name="search_domain" value="<?php echo htmlspecialchars($searchDomain, ENT_QUOTES, 'UTF-8'); ?>" />
+                  <input type="hidden" name="date_from" value="<?php echo htmlspecialchars($dateFrom, ENT_QUOTES, 'UTF-8'); ?>" />
+                  <input type="hidden" name="date_to" value="<?php echo htmlspecialchars($dateTo, ENT_QUOTES, 'UTF-8'); ?>" />
+                  <input type="hidden" name="stat_n" value="<?php echo (int)$statN; ?>" />
 
                   <label class="tiny">Status:</label><small><?php echo strtoupper($c['status']); ?></small>
 
@@ -911,7 +1167,8 @@ $processingCount  = (int)$stmt->fetchColumn();
         </tbody>
       </table>
       <div class="tiny" style="margin-top:6px;">
-        Showing latest <?php echo (int)$limit; ?> records with current filters.
+        Showing latest <?php echo (int)$limit; ?> of <?php echo number_format($filterTotalRows); ?> matching records &mdash;
+        <strong><?php echo number_format($filterTotalSats); ?> sats</strong> total (sats_sent) for this filter.
       </div>
     </div>
   </div>
