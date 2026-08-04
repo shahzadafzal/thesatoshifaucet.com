@@ -263,6 +263,101 @@
                 align-items: flex-start;
             }
         }
+
+        /* ── Quick Lightning Donation widget ── */
+        .donate-amount-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        .donate-amount-btn {
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            padding: 10px 6px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #222;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s, color 0.15s;
+        }
+
+        .donate-amount-btn:hover {
+            background: #f4f4f4;
+        }
+
+        .donate-amount-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        .donate-amount-btn:disabled {
+            opacity: 0.6;
+            cursor: default;
+        }
+
+        .donate-custom-row {
+            margin-top: 10px;
+        }
+
+        .donate-custom-input-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 4px;
+            flex-wrap: wrap;
+        }
+
+        .donate-custom-input-row input[type="number"] {
+            flex: 1 1 140px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 0.9rem;
+            box-sizing: border-box;
+        }
+
+        .donate-generate-btn {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .donate-generate-btn:hover {
+            background: var(--accent-dark);
+        }
+
+        .donate-generate-btn:disabled {
+            opacity: 0.6;
+            cursor: default;
+        }
+
+        .donate-status {
+            margin-top: 10px;
+            min-height: 1.2em;
+        }
+
+        .donate-status.error {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .donate-status.ok {
+            color: #1a7f37;
+            font-weight: 600;
+        }
+
+        .donate-invoice-amount-line {
+            margin-top: 4px;
+        }
     </style>
 </head>
 
@@ -336,6 +431,48 @@
         <div class="card">
             <h2><span class="emoji-header">💙</span>How You Can Help</h2>
             <p>Choose whichever method works best for you. Any sats here and we will make sure to keep the faucet running.</p>
+
+            <div class="donation-option">
+                <h3>⚡ Quick Lightning Donation</h3>
+                <p>Pick an amount below and we'll generate a fresh Lightning invoice instantly &mdash; scan it with your phone or copy/paste it into any wallet.</p>
+
+                <div class="donate-amount-grid" id="donate-amount-grid">
+                    <button type="button" class="donate-amount-btn" data-sats="100">100 sats</button>
+                    <button type="button" class="donate-amount-btn" data-sats="1000">1,000 sats</button>
+                    <button type="button" class="donate-amount-btn" data-sats="5000">5,000 sats</button>
+                    <button type="button" class="donate-amount-btn" data-sats="10000">10,000 sats</button>
+                    <button type="button" class="donate-amount-btn" data-sats="50000">50,000 sats</button>
+                    <button type="button" class="donate-amount-btn" data-sats="100000">100,000 sats</button>
+                </div>
+
+                <div class="donate-custom-row">
+                    <label for="donate-custom-amount" class="tiny">Or enter a custom amount (sats)</label>
+                    <div class="donate-custom-input-row">
+                        <input type="number" id="donate-custom-amount" min="1" step="1" inputmode="numeric" placeholder="e.g. 2500" />
+                        <button type="button" id="donate-custom-btn" class="donate-generate-btn">Generate Invoice</button>
+                    </div>
+                </div>
+
+                <div id="donate-status" class="donate-status tiny" aria-live="polite"></div>
+
+                <div id="donate-invoice-result" class="donation-address" style="display:none;">
+                    <div class="address-row-flex">
+                        <div class="address-text" id="donate-invoice-text"></div>
+                        <div class="address-actions">
+                            <button class="copy-btn" data-target="donate-invoice-text">Copy</button>
+                        </div>
+                    </div>
+                    <div class="qr-wrap">
+                        <div id="donate-invoice-qr" class="qr-canvas" aria-hidden="true"></div>
+                        <div class="qr-label tiny">
+                            Scan with any Lightning wallet, or
+                            <a id="donate-invoice-link" href="#">tap to open in your wallet app</a> on mobile.
+                            <div class="donate-invoice-amount-line">Amount: <strong id="donate-invoice-amount"></strong> sats</div>
+                        </div>
+                    </div>
+                </div>
+                <p class="tiny">Each invoice is single-use and generated on demand, so it always reflects the latest donation wallet.</p>
+            </div>
 
             <div class="donation-option">
                 <h3>⚡ Lightning (Fast & Low Cost)</h3>
@@ -536,22 +673,32 @@
         .copy-btn { background:#1a73e8; color:#fff; border:none; padding:7px 10px; border-radius:6px; cursor:pointer; font-size:0.9rem; }
         .copy-btn:active { transform:translateY(1px); }
         .qr-wrap { margin-top:10px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-        .qr-canvas { width:160px; height:160px; background:#fff; padding:8px; border:1px solid #e6e6e6; border-radius:8px; }
+        .qr-canvas { width:fit-content; background:#fff; padding:8px; border:1px solid #e6e6e6; border-radius:8px; }
+        .qr-canvas canvas { display:block; }
         .qr-label { color:#666; font-size:0.85rem; }
-        @media (max-width:480px) { .qr-canvas { width:120px; height:120px; } }
     </style>
 
-    <!-- QR code generator and copy helpers -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- QR code generator and copy helpers (same CDN/build used by admin-7f39c2b5s.php) -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script>
         (function(){
+            // Same QRCode() call/options as the "Pay Invoice QR Code" on admin-7f39c2b5s.php —
+            // fixed 180x180 size instead of measuring the container, which is what was failing
+            // (clientWidth can be 0 if the container is still hidden/unlaid-out when this runs).
             function makeQR(containerId, text) {
                 const el = document.getElementById(containerId);
                 if (!el || !text) return;
                 // clear previous
                 el.innerHTML = '';
                 try {
-                    new QRCode(el, { text: text, width: el.clientWidth || 160, height: el.clientHeight || 160 });
+                    new QRCode(el, {
+                        text: text,
+                        width: 180,
+                        height: 180,
+                        colorDark: '#000000',
+                        colorLight: '#ffffff',
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
                 } catch(e) {
                     el.textContent = text;
                 }
@@ -583,8 +730,88 @@
                 setupCopyButtons();
             }
 
+            // Exposed so the "Quick Lightning Donation" widget below can render its own QR code.
+            window.makeQR = makeQR;
+
             if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
             else init();
+        })();
+    </script>
+
+    <!-- Quick Lightning Donation: preset/custom sats -> auto-generated LNURL invoice -->
+    <script>
+        (function(){
+            const grid = document.getElementById('donate-amount-grid');
+            const customInput = document.getElementById('donate-custom-amount');
+            const customBtn = document.getElementById('donate-custom-btn');
+            const statusEl = document.getElementById('donate-status');
+            const resultEl = document.getElementById('donate-invoice-result');
+            const invoiceTextEl = document.getElementById('donate-invoice-text');
+            const invoiceLinkEl = document.getElementById('donate-invoice-link');
+            const invoiceAmountEl = document.getElementById('donate-invoice-amount');
+            if (!grid || !customInput || !customBtn) return;
+
+            function setStatus(msg, cls) {
+                statusEl.textContent = msg || '';
+                statusEl.className = 'donate-status tiny' + (cls ? ' ' + cls : '');
+            }
+
+            function setBusy(busy) {
+                grid.querySelectorAll('.donate-amount-btn').forEach(b => b.disabled = busy);
+                customBtn.disabled = busy;
+            }
+
+            function requestInvoice(rawSats, activeBtn) {
+                const sats = parseInt(rawSats, 10);
+                if (!sats || sats <= 0) {
+                    setStatus('Please enter a valid amount in sats.', 'error');
+                    return;
+                }
+
+                grid.querySelectorAll('.donate-amount-btn').forEach(b => b.classList.remove('active'));
+                if (activeBtn) activeBtn.classList.add('active');
+
+                resultEl.style.display = 'none';
+                setBusy(true);
+                setStatus('Generating Lightning invoice…');
+
+                fetch('donate_invoice.php?amount=' + encodeURIComponent(sats))
+                    .then(r => r.json())
+                    .then(data => {
+                        setBusy(false);
+                        if (!data || data.status !== 'ok' || !data.invoice) {
+                            setStatus((data && data.message) || 'Could not generate an invoice. Please try again.', 'error');
+                            return;
+                        }
+                        invoiceTextEl.textContent = data.invoice;
+                        invoiceLinkEl.href = 'lightning:' + data.invoice;
+                        invoiceAmountEl.textContent = (data.amount || sats).toLocaleString();
+                        resultEl.style.display = 'block';
+                        if (typeof window.makeQR === 'function') window.makeQR('donate-invoice-qr', data.invoice);
+                        setStatus('Invoice ready — scan or copy below. Thank you! 🙏', 'ok');
+                    })
+                    .catch(() => {
+                        setBusy(false);
+                        setStatus('Network error while generating the invoice. Please try again.', 'error');
+                    });
+            }
+
+            grid.addEventListener('click', function(e){
+                const btn = e.target.closest('.donate-amount-btn');
+                if (!btn) return;
+                requestInvoice(btn.getAttribute('data-sats'), btn);
+            });
+
+            customBtn.addEventListener('click', function(){
+                requestInvoice(customInput.value, null);
+            });
+
+            customInput.addEventListener('keydown', function(e){
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    requestInvoice(customInput.value, null);
+                }
+            });
         })();
     </script>
     <script>

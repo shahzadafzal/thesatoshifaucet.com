@@ -174,7 +174,7 @@ if (!$isLoggedIn) {
 $allowedStatuses = ['pending','processing','paid','failed','blocked'];
 $filterStatuses = ['processing'];
 $filterLast24 = false;
-$filterLimit = 20;
+$filterLimit = 2;
 $filterSort = 'DESC';
 
 function normalizeStatusList($input, $allowedStatuses) {
@@ -235,27 +235,60 @@ if (isset($_GET['filter_sort'])) {
 $searchIp        = trim((string)($_GET['search_ip'] ?? $_POST['search_ip'] ?? ''));
 $searchLnurlUser = trim((string)($_GET['search_lnurl_user'] ?? $_POST['search_lnurl_user'] ?? ''));
 $searchDomain    = trim((string)($_GET['search_domain'] ?? $_POST['search_domain'] ?? ''));
+$searchId        = trim((string)($_GET['search_id'] ?? $_POST['search_id'] ?? ''));
 $dateFrom        = trim((string)($_GET['date_from'] ?? $_POST['date_from'] ?? ''));
 $dateTo          = trim((string)($_GET['date_to'] ?? $_POST['date_to'] ?? ''));
 
-$statN = 50;
+$statN = 1;
 if (isset($_GET['stat_n'])) {
     $statN = max(1, min(500, (int)$_GET['stat_n']));
 } elseif (isset($_POST['stat_n'])) {
     $statN = max(1, min(500, (int)$_POST['stat_n']));
 }
 
-// Translate a user-typed '*' wildcard into a safe, parameterized SQL LIKE pattern.
-// Any literal backslash/percent/underscore the user typed is escaped first, so only
-// an actual '*' becomes a wildcard. No '*' typed => pattern has no '%' => exact match.
-// Returns null when the input is empty (caller should add no WHERE condition).
-function wildcard_like_param(string $input): ?string {
+// Translate a user-typed '*' wildcard (and optional leading '~' negation) into a safe,
+// parameterized SQL LIKE pattern. Any literal backslash/percent/underscore the user typed
+// is escaped first, so only an actual '*' becomes a wildcard. No '*' typed => pattern has
+// no '%' => exact match. A leading '~' (e.g. "~112.110.*") flips the match to NOT LIKE.
+// Returns null when the input (after stripping '~') is empty (caller adds no WHERE condition).
+function parse_wildcard_search(string $input): ?array {
     $input = trim($input);
     if ($input === '') {
         return null;
     }
+    $negate = false;
+    if ($input[0] === '~') {
+        $negate = true;
+        $input = ltrim(substr($input, 1));
+        if ($input === '') {
+            return null;
+        }
+    }
     $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $input);
-    return str_replace('*', '%', $escaped);
+    $pattern = str_replace('*', '%', $escaped);
+    return ['negate' => $negate, 'pattern' => $pattern];
+}
+
+// Parse a transaction-ID search: a single id ("3842") or an inclusive range ("3800-3810",
+// spaces around the dash are OK). Returns null when empty/unrecognized (caller adds no
+// WHERE condition in that case, so a stray typo doesn't accidentally clear the search).
+function parse_id_search(string $input): ?array {
+    $input = trim($input);
+    if ($input === '') {
+        return null;
+    }
+    if (preg_match('/^\d+$/', $input)) {
+        return ['type' => 'single', 'id' => (int)$input];
+    }
+    if (preg_match('/^(\d+)\s*-\s*(\d+)$/', $input, $m)) {
+        $from = (int)$m[1];
+        $to   = (int)$m[2];
+        if ($from > $to) {
+            [$from, $to] = [$to, $from];
+        }
+        return ['type' => 'range', 'from' => $from, 'to' => $to];
+    }
+    return null;
 }
 
 // Validate a datetime-local ("Y-m-d\TH:i") string; returns null if empty/invalid.
@@ -279,12 +312,24 @@ function build_claims_filter(
     bool $filterLast24,
     string $dateFrom,
     string $dateTo,
-    ?string $ipLike,
-    ?string $lnurlUserLike,
-    ?string $domainLike
+    ?array $ipSearch,
+    ?array $lnurlUserSearch,
+    ?array $domainSearch,
+    ?array $idSearch
 ): array {
     $where = [];
     $params = [];
+
+    if ($idSearch !== null) {
+        if ($idSearch['type'] === 'single') {
+            $where[] = "id = :search_id";
+            $params[':search_id'] = $idSearch['id'];
+        } else {
+            $where[] = "id BETWEEN :search_id_from AND :search_id_to";
+            $params[':search_id_from'] = $idSearch['from'];
+            $params[':search_id_to'] = $idSearch['to'];
+        }
+    }
 
     if ($filterStatuses !== [] && count($filterStatuses) !== count($allowedStatuses)) {
         $placeholders = [];
@@ -318,19 +363,26 @@ function build_claims_filter(
         $where[] = "created_at >= (NOW() - INTERVAL 1 DAY)";
     }
 
-    if ($ipLike !== null) {
-        $where[] = "ip_address LIKE :search_ip ESCAPE '\\\\'";
-        $params[':search_ip'] = $ipLike;
+    if ($ipSearch !== null) {
+        $op = $ipSearch['negate'] ? 'NOT LIKE' : 'LIKE';
+        $where[] = "ip_address {$op} :search_ip ESCAPE '\\\\'";
+        $params[':search_ip'] = $ipSearch['pattern'];
     }
 
-    if ($lnurlUserLike !== null) {
-        $where[] = "lnurl_username LIKE :search_lnurl_user ESCAPE '\\\\'";
-        $params[':search_lnurl_user'] = $lnurlUserLike;
+    if ($lnurlUserSearch !== null) {
+        $op = $lnurlUserSearch['negate'] ? 'NOT LIKE' : 'LIKE';
+        $where[] = "lnurl_username {$op} :search_lnurl_user ESCAPE '\\\\'";
+        $params[':search_lnurl_user'] = $lnurlUserSearch['pattern'];
     }
 
-    if ($domainLike !== null) {
-        $where[] = "(receiver_domain LIKE :search_domain ESCAPE '\\\\' OR lnurl_host LIKE :search_domain ESCAPE '\\\\')";
-        $params[':search_domain'] = $domainLike;
+    if ($domainSearch !== null) {
+        $params[':search_domain'] = $domainSearch['pattern'];
+        if ($domainSearch['negate']) {
+            // Exclude rows where either field matches the pattern.
+            $where[] = "(receiver_domain NOT LIKE :search_domain ESCAPE '\\\\' AND lnurl_host NOT LIKE :search_domain ESCAPE '\\\\')";
+        } else {
+            $where[] = "(receiver_domain LIKE :search_domain ESCAPE '\\\\' OR lnurl_host LIKE :search_domain ESCAPE '\\\\')";
+        }
     }
 
     return ['where' => $where, 'params' => $params];
@@ -372,9 +424,10 @@ if (isset($_POST['update_status'])) {
 // --- Fetch filtered claims ---
 $limit = $filterLimit;
 
-$ipLike        = wildcard_like_param($searchIp);
-$lnurlUserLike = wildcard_like_param($searchLnurlUser);
-$domainLike    = wildcard_like_param($searchDomain);
+$ipSearch        = parse_wildcard_search($searchIp);
+$lnurlUserSearch = parse_wildcard_search($searchLnurlUser);
+$domainSearch    = parse_wildcard_search($searchDomain);
+$idSearch        = parse_id_search($searchId);
 
 $filter = build_claims_filter(
     $filterStatuses,
@@ -382,9 +435,10 @@ $filter = build_claims_filter(
     $filterLast24,
     $dateFrom,
     $dateTo,
-    $ipLike,
-    $lnurlUserLike,
-    $domainLike
+    $ipSearch,
+    $lnurlUserSearch,
+    $domainSearch,
+    $idSearch
 );
 $where = $filter['where'];
 $params = $filter['params'];
@@ -494,6 +548,7 @@ if ($row) {
       background: #f5f5f5;
       color: #222;
       line-height: 1.5;
+      overflow-x: hidden;
     }
 
     .page {
@@ -504,9 +559,18 @@ if ($row) {
 
     header {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
+      gap: 12px;
       margin-bottom: 16px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
     }
 
     h1 {
@@ -558,47 +622,94 @@ if ($row) {
 
     .filter-form {
       display: flex;
-      flex-wrap: wrap;
+      flex-direction: column;
       gap: 8px;
-      align-items: center;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       margin-bottom: 10px;
     }
 
     .filter-form label {
-      font-size: 0.85rem;
+      font-size: 0.8rem;
+    }
+
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      align-items: center;
+    }
+
+    .filter-row-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .filter-status-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 10px;
+      align-items: center;
+    }
+
+    .filter-status-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      white-space: nowrap;
+      font-size: 0.8rem;
+    }
+
+    .filter-sep {
+      width: 1px;
+      align-self: stretch;
+      background: var(--border-color);
+    }
+
+    .filter-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      font-size: 0.8rem;
+      color: #555;
+    }
+
+    .filter-note {
+      color: #888;
+      font-style: italic;
     }
 
     .filter-select {
-      font-size: 0.85rem;
-      padding: 3px 6px;
+      font-size: 0.8rem;
+      padding: 2px 4px;
     }
 
     .filter-checkbox {
-      margin-left: 4px;
+      margin: 0;
     }
 
     .filter-count {
-      width: 70px;
-      padding: 4px 6px;
+      width: 55px;
+      padding: 2px 4px;
       border-radius: 4px;
       border: 1px solid #ccc;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
     }
 
     .filter-text {
-      width: 130px;
-      padding: 4px 6px;
+      width: 140px;
+      padding: 2px 5px;
       border-radius: 4px;
       border: 1px solid #ccc;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
+      box-sizing: border-box;
     }
 
     .filter-datetime {
-      padding: 3px 5px;
+      padding: 2px 4px;
       border-radius: 4px;
       border: 1px solid #ccc;
-      font-size: 0.82rem;
+      font-size: 0.78rem;
     }
 
     .stat-bar {
@@ -647,6 +758,25 @@ if ($row) {
       background: #a72824;
     }
 
+    .filter-clear-btn {
+      padding: 4px 10px;
+      font-size: 0.82rem;
+      border-radius: 4px;
+      border: 1px solid #6a737d;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      white-space: nowrap;
+      line-height: 1.5;
+    }
+
+    .filter-clear-btn:hover {
+      background: #6a737d;
+      color: #fff;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
@@ -674,6 +804,16 @@ if ($row) {
       font-size: 0.8rem;
       max-width: 340px;
       word-break: break-all;
+    }
+
+    /* IP / domain / lnurl_username / lnurl_full_url cell — cap width regardless of
+       how long the domain, username, or callback URL is; wrap instead of stretching
+       the whole table. */
+    .contact-cell {
+      max-width: 260px;
+      word-break: break-all;
+      overflow-wrap: anywhere;
+      min-width: 100px;
     }
 
     textarea.invoice-copy {
@@ -728,6 +868,30 @@ if ($row) {
     @media (max-width: 720px) {
       table {
         font-size: 0.8rem;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .page {
+        padding: 16px 12px 28px;
+      }
+      h1 {
+        font-size: 1.3rem;
+      }
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .header-actions {
+        width: 100%;
+      }
+      .filter-text {
+        width: 100%;
+      }
+      .stat-bar,
+      .scheduler-bar {
+        flex-direction: column;
+        align-items: stretch;
       }
     }
 
@@ -868,7 +1032,7 @@ if ($row) {
         <h1>Faucet Admin(<?php echo count($claims); ?>/<?php echo (int)$processingCount; ?>)</h1>
         <div class="subtitle">Manage transaction statuses, sats_sent, and invoices.</div>
       </div>
-      <div style="display:flex; gap:10px; align-items:center;">        
+      <div class="header-actions">
         <form method="post" class="logout-form">
           <button type="submit" name="logout" value="1">Logout</button>
         </form>
@@ -930,72 +1094,87 @@ if ($row) {
 
       <!-- Filters -->
       <form method="get" class="filter-form">
-        <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
-          <span style="font-size:0.85rem; font-weight:600;">Status:</span>
-          <?php foreach ($allowedStatuses as $st): ?>
-            <label style="display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">
-              <input type="checkbox"
-                     name="filter_status[]"
-                     value="<?php echo $st; ?>"
-                     class="filter-checkbox"
-                     <?php if (in_array($st, $filterStatuses, true)) echo 'checked'; ?> />
-              <?php echo ucfirst($st); ?>
-            </label>
-          <?php endforeach; ?>
+        <!-- Row 1: status + result options + apply -->
+        <div class="filter-row">
+          <span class="filter-row-title">Status:</span>
+          <div class="filter-status-group">
+            <?php foreach ($allowedStatuses as $st): ?>
+              <label class="filter-status-item">
+                <input type="checkbox"
+                       name="filter_status[]"
+                       value="<?php echo $st; ?>"
+                       class="filter-checkbox"
+                       <?php if (in_array($st, $filterStatuses, true)) echo 'checked'; ?> />
+                <?php echo ucfirst($st); ?>
+              </label>
+            <?php endforeach; ?>
+          </div>
+          <span class="filter-sep"></span>
+          <label class="filter-inline">
+            Show
+            <input type="number" name="filter_limit" class="filter-count" min="1" max="500" step="1"
+                   value="<?php echo (int)$filterLimit; ?>" />
+          </label>
+          <label class="filter-inline">
+            Sort
+            <select name="filter_sort" class="filter-select">
+              <option value="DESC" <?php if ($filterSort==='DESC') echo 'selected'; ?>>Newest (DESC)</option>
+              <option value="ASC"  <?php if ($filterSort==='ASC')  echo 'selected'; ?>>Oldest (ASC)</option>
+            </select>
+          </label>
+          <label class="filter-inline">
+            <input type="checkbox" name="filter_last24" value="1" class="filter-checkbox"
+                   <?php if ($filterLast24) echo 'checked'; ?> />
+            Last 24h
+          </label>
+          <label class="filter-inline">
+            Paid stat N
+            <input type="number" name="stat_n" class="stat-n-input" min="1" max="500" step="1"
+                   value="<?php echo (int)$statN; ?>" />
+          </label>
+          <button type="submit" class="filter-button">Apply</button>
+          <a href="?" class="filter-clear-btn">Clear filters</a>
         </div>
 
-        <label>
-          IP (use * as wildcard):
-          <input type="text" name="search_ip" class="filter-text" placeholder="e.g. 91.108.*"
-                 value="<?php echo htmlspecialchars($searchIp, ENT_QUOTES, 'UTF-8'); ?>" />
-        </label>
-        <label>
-          LNURL username:
-          <input type="text" name="search_lnurl_user" class="filter-text" placeholder="e.g. *satoshi*"
-                 value="<?php echo htmlspecialchars($searchLnurlUser, ENT_QUOTES, 'UTF-8'); ?>" />
-        </label>
-        <label>
-          Domain/host:
-          <input type="text" name="search_domain" class="filter-text" placeholder="e.g. *.wallet.com"
-                 value="<?php echo htmlspecialchars($searchDomain, ENT_QUOTES, 'UTF-8'); ?>" />
-        </label>
+        <!-- Row 2: wildcard/exclude search fields -->
+        <div class="filter-row">
+          <label class="filter-inline">
+            ID
+            <input type="text" name="search_id" class="filter-text" placeholder="3842 or 3800-3810"
+                   value="<?php echo htmlspecialchars($searchId, ENT_QUOTES, 'UTF-8'); ?>" />
+          </label>
+          <label class="filter-inline">
+            IP
+            <input type="text" name="search_ip" class="filter-text" placeholder="91.108.* / ~112.110.*"
+                   value="<?php echo htmlspecialchars($searchIp, ENT_QUOTES, 'UTF-8'); ?>" />
+          </label>
+          <label class="filter-inline">
+            LNURL user
+            <input type="text" name="search_lnurl_user" class="filter-text" placeholder="*satoshi* / ~*satoshi*"
+                   value="<?php echo htmlspecialchars($searchLnurlUser, ENT_QUOTES, 'UTF-8'); ?>" />
+          </label>
+          <label class="filter-inline">
+            Domain/host
+            <input type="text" name="search_domain" class="filter-text" placeholder="*.wallet.com / ~*.wallet.com"
+                   value="<?php echo htmlspecialchars($searchDomain, ENT_QUOTES, 'UTF-8'); ?>" />
+          </label>
+          <span style="display:none;" class="tiny filter-note">(ID: single or range e.g. 3800-3810 &middot; * = wildcard, ~ = exclude)</span>
+        </div>
 
-        <label>
-          From:
-          <input type="datetime-local" name="date_from" class="filter-datetime"
-                 value="<?php echo htmlspecialchars($dateFrom, ENT_QUOTES, 'UTF-8'); ?>" />
-        </label>
-        <label>
-          To:
-          <input type="datetime-local" name="date_to" class="filter-datetime"
-                 value="<?php echo htmlspecialchars($dateTo, ENT_QUOTES, 'UTF-8'); ?>" />
-        </label>
-        <span class="tiny">(server time; overrides "Only last 24h" when set)</span>
-
-        <label>
-          Show
-          <input type="number" name="filter_limit" class="filter-count" min="1" max="500" step="1"
-                 value="<?php echo (int)$filterLimit; ?>" />
-          records
-        </label>
-        <label>
-          Sort:
-          <select name="filter_sort" class="filter-select">
-            <option value="DESC" <?php if ($filterSort==='DESC') echo 'selected'; ?>>Newest first (DESC)</option>
-            <option value="ASC"  <?php if ($filterSort==='ASC')  echo 'selected'; ?>>Oldest first (ASC)</option>
-          </select>
-        </label>
-        <label>
-          <input type="checkbox" name="filter_last24" value="1" class="filter-checkbox"
-                 <?php if ($filterLast24) echo 'checked'; ?> />
-          Only last 24h
-        </label>
-        <label>
-          Paid stat N:
-          <input type="number" name="stat_n" class="stat-n-input" min="1" max="500" step="1"
-                 value="<?php echo (int)$statN; ?>" />
-        </label>
-        <button type="submit" class="filter-button">Apply</button>
+        <!-- Row 3: date range -->
+        <div class="filter-row">
+          <label class="filter-inline">
+            From
+            <input type="datetime-local" name="date_from" class="filter-datetime"
+                   value="<?php echo htmlspecialchars($dateFrom, ENT_QUOTES, 'UTF-8'); ?>" />
+          </label>
+          <label class="filter-inline">
+            To
+            <input type="datetime-local" name="date_to" class="filter-datetime"
+                   value="<?php echo htmlspecialchars($dateTo, ENT_QUOTES, 'UTF-8'); ?>" />
+          </label>
+          <span class="tiny filter-note">(server time; overrides "Last 24h" when set)</span>
+        </div>
       </form>
 
       <table>
@@ -1065,7 +1244,7 @@ if ($row) {
                   <span class="tiny">—</span>
                 <?php endif; ?>
               </td>
-              <td>
+              <td class="contact-cell">
                 <?php if ($c['claim_source'] == "scan") {?>
                 <span title="Scan QR Code">📷</span>
                 <?php } ?>
@@ -1093,6 +1272,7 @@ if ($row) {
                   <input type="hidden" name="filter_last24" value="<?php echo $filterLast24 ? '1' : '0'; ?>" />
                   <input type="hidden" name="filter_limit" value="<?php echo (int)$filterLimit; ?>" />
                   <input type="hidden" name="filter_sort" value="<?php echo htmlspecialchars($filterSort, ENT_QUOTES, 'UTF-8'); ?>" />
+                  <input type="hidden" name="search_id" value="<?php echo htmlspecialchars($searchId, ENT_QUOTES, 'UTF-8'); ?>" />
                   <input type="hidden" name="search_ip" value="<?php echo htmlspecialchars($searchIp, ENT_QUOTES, 'UTF-8'); ?>" />
                   <input type="hidden" name="search_lnurl_user" value="<?php echo htmlspecialchars($searchLnurlUser, ENT_QUOTES, 'UTF-8'); ?>" />
                   <input type="hidden" name="search_domain" value="<?php echo htmlspecialchars($searchDomain, ENT_QUOTES, 'UTF-8'); ?>" />
