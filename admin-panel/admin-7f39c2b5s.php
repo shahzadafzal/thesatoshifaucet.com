@@ -175,7 +175,7 @@ $allowedStatuses = ['pending','processing','paid','failed','blocked'];
 $filterStatuses = ['processing'];
 $filterLast24 = false;
 $filterLimit = 2;
-$filterSort = 'DESC';
+$filterSort = 'ASC';
 
 function normalizeStatusList($input, $allowedStatuses) {
     $statuses = [];
@@ -236,6 +236,7 @@ $searchIp        = trim((string)($_GET['search_ip'] ?? $_POST['search_ip'] ?? ''
 $searchLnurlUser = trim((string)($_GET['search_lnurl_user'] ?? $_POST['search_lnurl_user'] ?? ''));
 $searchDomain    = trim((string)($_GET['search_domain'] ?? $_POST['search_domain'] ?? ''));
 $searchId        = trim((string)($_GET['search_id'] ?? $_POST['search_id'] ?? ''));
+$searchAmount    = trim((string)($_GET['search_amount'] ?? $_POST['search_amount'] ?? ''));
 $dateFrom        = trim((string)($_GET['date_from'] ?? $_POST['date_from'] ?? ''));
 $dateTo          = trim((string)($_GET['date_to'] ?? $_POST['date_to'] ?? ''));
 
@@ -291,6 +292,37 @@ function parse_id_search(string $input): ?array {
     return null;
 }
 
+// Parse an amount-range search: a single value ("50" => exact 50), a bounded range
+// ("10-50"), or an open-ended range ("10-" => >=10, "-50" => <=50). Reversed bounds are
+// swapped (same convention as parse_id_search above). Returns null when empty/unrecognized.
+function parse_amount_range(string $input): ?array {
+    $input = trim($input);
+    if ($input === '') {
+        return null;
+    }
+    $input = preg_replace('/\s+/', '', $input);
+
+    if (preg_match('/^(\d+)-(\d+)$/', $input, $m)) {
+        $min = (int)$m[1];
+        $max = (int)$m[2];
+        if ($min > $max) {
+            [$min, $max] = [$max, $min];
+        }
+        return ['min' => $min, 'max' => $max];
+    }
+    if (preg_match('/^(\d+)-$/', $input, $m)) {
+        return ['min' => (int)$m[1], 'max' => null];
+    }
+    if (preg_match('/^-(\d+)$/', $input, $m)) {
+        return ['min' => null, 'max' => (int)$m[1]];
+    }
+    if (preg_match('/^\d+$/', $input)) {
+        $val = (int)$input;
+        return ['min' => $val, 'max' => $val];
+    }
+    return null;
+}
+
 // Validate a datetime-local ("Y-m-d\TH:i") string; returns null if empty/invalid.
 function parse_datetime_local(string $input): ?string {
     $input = trim($input);
@@ -315,10 +347,34 @@ function build_claims_filter(
     ?array $ipSearch,
     ?array $lnurlUserSearch,
     ?array $domainSearch,
-    ?array $idSearch
+    ?array $idSearch,
+    ?array $amountSearch = null
 ): array {
     $where = [];
     $params = [];
+
+    if ($amountSearch !== null) {
+        // Matches EITHER the requested or the sent amount (either field falling in range
+        // counts as a match).
+        $conditions = [];
+        if ($amountSearch['min'] !== null && $amountSearch['max'] !== null) {
+            $conditions[] = "sats_requested BETWEEN :amt_min AND :amt_max";
+            $conditions[] = "sats_sent BETWEEN :amt_min AND :amt_max";
+            $params[':amt_min'] = $amountSearch['min'];
+            $params[':amt_max'] = $amountSearch['max'];
+        } elseif ($amountSearch['min'] !== null) {
+            $conditions[] = "sats_requested >= :amt_min";
+            $conditions[] = "sats_sent >= :amt_min";
+            $params[':amt_min'] = $amountSearch['min'];
+        } elseif ($amountSearch['max'] !== null) {
+            $conditions[] = "sats_requested <= :amt_max";
+            $conditions[] = "sats_sent <= :amt_max";
+            $params[':amt_max'] = $amountSearch['max'];
+        }
+        if ($conditions) {
+            $where[] = '(' . implode(' OR ', $conditions) . ')';
+        }
+    }
 
     if ($idSearch !== null) {
         if ($idSearch['type'] === 'single') {
@@ -428,6 +484,7 @@ $ipSearch        = parse_wildcard_search($searchIp);
 $lnurlUserSearch = parse_wildcard_search($searchLnurlUser);
 $domainSearch    = parse_wildcard_search($searchDomain);
 $idSearch        = parse_id_search($searchId);
+$amountSearch    = parse_amount_range($searchAmount);
 
 $filter = build_claims_filter(
     $filterStatuses,
@@ -438,7 +495,8 @@ $filter = build_claims_filter(
     $ipSearch,
     $lnurlUserSearch,
     $domainSearch,
-    $idSearch
+    $idSearch,
+    $amountSearch
 );
 $where = $filter['where'];
 $params = $filter['params'];
@@ -635,7 +693,7 @@ if ($row) {
     .filter-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px 16px;
+      gap: 1px 5px;
       align-items: center;
     }
 
@@ -1117,9 +1175,9 @@ if ($row) {
           </label>
           <label class="filter-inline">
             Sort
-            <select name="filter_sort" class="filter-select">
-              <option value="DESC" <?php if ($filterSort==='DESC') echo 'selected'; ?>>Newest (DESC)</option>
+            <select name="filter_sort" class="filter-select">              
               <option value="ASC"  <?php if ($filterSort==='ASC')  echo 'selected'; ?>>Oldest (ASC)</option>
+              <option value="DESC" <?php if ($filterSort==='DESC') echo 'selected'; ?>>Newest (DESC)</option>
             </select>
           </label>
           <label class="filter-inline">
@@ -1158,7 +1216,12 @@ if ($row) {
             <input type="text" name="search_domain" class="filter-text" placeholder="*.wallet.com / ~*.wallet.com"
                    value="<?php echo htmlspecialchars($searchDomain, ENT_QUOTES, 'UTF-8'); ?>" />
           </label>
-          <span style="display:none;" class="tiny filter-note">(ID: single or range e.g. 3800-3810 &middot; * = wildcard, ~ = exclude)</span>
+          <label class="filter-inline">
+            Amount (sats)
+            <input type="text" name="search_amount" class="filter-text" placeholder="10-50, 10-, -50, or 50"
+                   value="<?php echo htmlspecialchars($searchAmount, ENT_QUOTES, 'UTF-8'); ?>" />
+          </label>
+          <span style="display:none;" class="tiny filter-note">(ID: single or range e.g. 3800-3810 &middot; * = wildcard, ~ = exclude &middot; Amount matches requested OR sent)</span>
         </div>
 
         <!-- Row 3: date range -->
@@ -1276,6 +1339,7 @@ if ($row) {
                   <input type="hidden" name="search_ip" value="<?php echo htmlspecialchars($searchIp, ENT_QUOTES, 'UTF-8'); ?>" />
                   <input type="hidden" name="search_lnurl_user" value="<?php echo htmlspecialchars($searchLnurlUser, ENT_QUOTES, 'UTF-8'); ?>" />
                   <input type="hidden" name="search_domain" value="<?php echo htmlspecialchars($searchDomain, ENT_QUOTES, 'UTF-8'); ?>" />
+                  <input type="hidden" name="search_amount" value="<?php echo htmlspecialchars($searchAmount, ENT_QUOTES, 'UTF-8'); ?>" />
                   <input type="hidden" name="date_from" value="<?php echo htmlspecialchars($dateFrom, ENT_QUOTES, 'UTF-8'); ?>" />
                   <input type="hidden" name="date_to" value="<?php echo htmlspecialchars($dateTo, ENT_QUOTES, 'UTF-8'); ?>" />
                   <input type="hidden" name="stat_n" value="<?php echo (int)$statN; ?>" />
