@@ -910,8 +910,13 @@ if ($row) {
       margin-top: 4px;
     }
 
-    .update-btn:hover {
+    .update-btn:hover:not(:disabled) {
       background: #a72824;
+    }
+
+    .update-btn:disabled {
+      background: #888;
+      cursor: not-allowed;
     }
 
     .tiny {
@@ -1329,8 +1334,12 @@ if ($row) {
                 <div>Sent: <?php echo number_format((int)$c['sats_sent']); ?> sats</div>
               </td>
               <td>
-                <form method="post" style="margin:0; display:flex; flex-direction:column; gap:3px;">
+                <form method="post" style="margin:0; display:flex; flex-direction:column; gap:3px;" onsubmit="return preventDoubleSubmit(this, '.update-btn', 'Updating…');">
                   <input type="hidden" name="id" value="<?php echo (int)$c['id']; ?>" />
+                  <!-- carries the "update_status" flag itself so disabling the submit button
+                       on click can't drop it from the posted form data (disabled controls are
+                       excluded from form submission). -->
+                  <input type="hidden" name="update_status" value="1" />
                   <input type="hidden" name="filter_status" value="<?php echo htmlspecialchars(implode(',', $filterStatuses), ENT_QUOTES, 'UTF-8'); ?>" />
                   <input type="hidden" name="filter_last24" value="<?php echo $filterLast24 ? '1' : '0'; ?>" />
                   <input type="hidden" name="filter_limit" value="<?php echo (int)$filterLimit; ?>" />
@@ -1375,7 +1384,7 @@ if ($row) {
                          value="<?php echo $c['reason']; ?>" />
 
                   
-                  <button type="submit" name="update_status" value="1" class="update-btn">Update</button>
+                  <button type="submit" class="update-btn">Update</button>
                 </form>
               </td>
               <td>
@@ -1418,6 +1427,20 @@ if ($row) {
   </div>
   <script src="../scripts/faucet.js" async defer></script>
   <script>
+    // Guards a normal (non-AJAX) form submit against double-clicks / accidental double
+    // presses: disables the submit button the instant the form is submitted so a second
+    // click (or Enter) can't fire a second POST while the page navigates/reloads. Since
+    // this is a real page submit (not fetch), the button re-enables itself automatically
+    // when the reloaded page renders fresh, unclicked buttons — no manual re-enable needed.
+    function preventDoubleSubmit(form, buttonSelector, busyText) {
+      const btn = form.querySelector(buttonSelector);
+      if (!btn) return true;
+      if (btn.disabled) return false; // already submitting — ignore the repeat click/Enter
+      btn.disabled = true;
+      if (busyText) btn.textContent = busyText;
+      return true; // let this (first) submission proceed
+    }
+
     function runScheduler() {
       const btn    = document.getElementById('run-scheduler-btn');
       const output = document.getElementById('scheduler-output');
