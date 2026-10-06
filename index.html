@@ -122,10 +122,27 @@ earn bitcoin free
             </div>
             <div id="cooldown-message" style="white-space: pre-line; margin-top:10px; font-size:0.95rem; color:#b05a00; min-height:1.35em;"></div>
             <div class="status-message" id="status-message" aria-live="polite"></div>
-            <a href="#" id="openPenaltyGame" class="fifa-game-btn">
-                ⚽ Play FIFA 2026 Penalty Challenge
-                <span>Win the World Cup while you wait</span>
-            </a>
+            <!-- Play while you wait. To add a game: set data-game-url + data-game-title and drop the "soon" class/disabled. -->
+            <div class="game-tiles" aria-label="Play while you wait">
+              <div class="game-tiles-title">🎮 Play while you wait</div>
+              <div class="game-tiles-row">
+                <button type="button" class="game-tile" data-game-url="game/mempool-aquarium" data-game-title="Mempool Aquarium">
+                  <span class="game-tile-icon">🐋</span>
+                  <strong>Mempool Aquarium</strong>
+                  <small>Catch live Bitcoin transactions</small>
+                </button>
+                <button type="button" class="game-tile game-tile-soon" disabled>
+                  <span class="game-tile-icon">⛏️</span>
+                  <strong>Block Race</strong>
+                  <small>Coming soon</small>
+                </button>
+                <button type="button" class="game-tile game-tile-soon" disabled>
+                  <span class="game-tile-icon">🔢</span>
+                  <strong>PoW Mini Miner</strong>
+                  <small>Coming soon</small>
+                </button>
+              </div>
+            </div>
 
             <!-- QR scan / upload buttons -->
             <div class="qr-btn-row">
@@ -776,16 +793,16 @@ earn bitcoin free
 
   <script src="scripts/faucet.js" async defer></script>
   <script>      
+    // "Play while you wait" game popup. Any element with data-game-url opens that game in the iframe.
+    // (The archived FIFA Penalty game still lives in game/penalty-shootout — re-add a tile to bring it back.)
     (function () {
-      const gameUrl = 'game/penalty-shootout';
-
       const overlay = document.createElement('div');
-      overlay.className = 'penalty-popup-overlay';
+      overlay.className = 'game-popup-overlay';
       overlay.innerHTML = `
-        <div class="penalty-popup-box" role="dialog" aria-modal="true" aria-label="Penalty Shootout Game">
-          <button class="penalty-popup-close" type="button" aria-label="Close game">&times;</button>
+        <div class="game-popup-box" role="dialog" aria-modal="true" aria-label="Game">
+          <button class="game-popup-close" type="button" aria-label="Close game">&times;</button>
           <iframe
-            title="Penalty Shootout Game"
+            title="Game"
             loading="lazy"
             allow="autoplay; fullscreen"
           ></iframe>
@@ -794,27 +811,32 @@ earn bitcoin free
 
       document.body.appendChild(overlay);
 
+      const box = overlay.querySelector('.game-popup-box');
       const iframe = overlay.querySelector('iframe');
-      const closeBtn = overlay.querySelector('.penalty-popup-close');
-      const openBtn = document.getElementById('openPenaltyGame');
+      const closeBtn = overlay.querySelector('.game-popup-close');
 
-      function openGame() {
-        iframe.src = gameUrl;
+      function openGame(url, title) {
+        box.setAttribute('aria-label', title || 'Game');
+        iframe.title = title || 'Game';
+        iframe.src = url;
         overlay.classList.add('is-open');
-        document.body.classList.add('penalty-popup-active');
+        document.body.classList.add('game-popup-active');
       }
 
       function closeGame() {
         overlay.classList.remove('is-open');
-        document.body.classList.remove('penalty-popup-active');
+        document.body.classList.remove('game-popup-active');
 
-        // Reset game every time popup closes
+        // Reset game every time popup closes (also stops its network polling)
         iframe.src = '';
       }
 
-      if (openBtn) {
-        openBtn.addEventListener('click', openGame);
-      }
+      document.querySelectorAll('[data-game-url]').forEach(function (el) {
+        el.addEventListener('click', function (event) {
+          event.preventDefault();
+          openGame(el.getAttribute('data-game-url'), el.getAttribute('data-game-title'));
+        });
+      });
 
       closeBtn.addEventListener('click', closeGame);
 

@@ -707,7 +707,7 @@ footer a {
   background: #15803d;
 }
 
-.penalty-popup-overlay {
+.game-popup-overlay {
   position: fixed;
   inset: 0;
   z-index: 99999;
@@ -718,11 +718,11 @@ footer a {
   background: rgba(0, 0, 0, 0.75);
 }
 
-.penalty-popup-overlay.is-open {
+.game-popup-overlay.is-open {
   display: flex;
 }
 
-.penalty-popup-box {
+.game-popup-box {
   position: relative;
   width: min(100%, 960px);
   height: min(90vh, 680px);
@@ -732,14 +732,14 @@ footer a {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
 }
 
-.penalty-popup-box iframe {
+.game-popup-box iframe {
   width: 100%;
   height: 100%;
   border: 0;
   display: block;
 }
 
-.penalty-popup-close {
+.game-popup-close {
   position: absolute;
   top: 10px;
   right: 10px;
@@ -755,26 +755,26 @@ footer a {
   cursor: pointer;
 }
 
-.penalty-popup-close:hover {
+.game-popup-close:hover {
   background: rgba(220, 38, 38, 0.95);
 }
 
-body.penalty-popup-active {
+body.game-popup-active {
   overflow: hidden;
 }
 
 @media (max-width: 768px) {
-  .penalty-popup-overlay {
+  .game-popup-overlay {
     padding: 8px;
   }
 
-  .penalty-popup-box {
+  .game-popup-box {
     width: 100%;
     height: 92vh;
     border-radius: 14px;
   }
 
-  .penalty-popup-close {
+  .game-popup-close {
     width: 40px;
     height: 40px;
     font-size: 24px;
@@ -782,50 +782,90 @@ body.penalty-popup-active {
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
-  .penalty-popup-box {
+  .game-popup-box {
     width: 96vw;
     height: 92vh;
   }
 }
 
-.fifa-game-btn{
+/* ---- "Play while you wait" game tiles ---- */
+.game-tiles{
+    margin:15px 0;
+}
+
+.game-tiles-title{
+    font-weight:700;
+    text-align:center;
+    margin-bottom:8px;
+}
+
+.game-tiles-row{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:10px;
+}
+
+.game-tile{
     display:flex;
     flex-direction:column;
     align-items:center;
     justify-content:center;
-    text-decoration:none;
-    background:linear-gradient(135deg,#00a651,#008c45);
+    gap:2px;
+    text-align:center;
+    font:inherit;
     color:#fff;
-    border-radius:20px;
-    padding:18px 24px;
-    margin:15px 0;
-    box-shadow:0 8px 25px rgba(0,166,81,.35);
-    transition:.3s;
-    position:relative;
-    overflow:hidden;
+    border:0;
+    border-radius:16px;
+    padding:14px 8px;
+    background:linear-gradient(135deg,#0b6fa4,#0a4d78);
+    box-shadow:0 6px 18px rgba(10,77,120,.35);
+    cursor:pointer;
+    transition:transform .2s, box-shadow .2s;
 }
 
-.fifa-game-btn:hover{
+.game-tile:hover:not(:disabled){
     transform:translateY(-3px);
-    box-shadow:0 12px 30px rgba(0,166,81,.5);
+    box-shadow:0 10px 24px rgba(10,77,120,.5);
 }
 
-.fifa-game-btn::before{
-    content:'🏆';
-    position:absolute;
-    right:15px;
-    top:10px;
-    font-size:30px;
-    opacity:.2;
+.game-tile-icon{
+    font-size:28px;
+    line-height:1.1;
 }
 
-.fifa-game-btn{  
-    font-weight:700;
+.game-tile strong{
+    font-size:.92rem;
 }
 
-.fifa-game-btn span{
-    font-size:14px;
-    font-weight:400;
-    margin-top:4px;
-    opacity:.9;
+.game-tile small{
+    font-size:.74rem;
+    opacity:.85;
+}
+
+.game-tile-soon,
+.game-tile:disabled{
+    background:#9aa5ad;
+    box-shadow:none;
+    cursor:not-allowed;
+    opacity:.7;
+}
+
+@media (max-width:480px){
+    .game-tiles-row{
+        grid-template-columns:1fr;
+    }
+    .game-tile{
+        display:grid;
+        grid-template-columns:auto 1fr;
+        grid-template-areas:"icon title" "icon sub";
+        column-gap:12px;
+        row-gap:0;
+        justify-items:start;
+        align-items:center;
+        text-align:left;
+        padding:10px 14px;
+    }
+    .game-tile-icon{ grid-area:icon; }
+    .game-tile strong{ grid-area:title; }
+    .game-tile small{ grid-area:sub; }
 }

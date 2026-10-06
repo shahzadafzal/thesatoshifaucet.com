@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Mempool Aquarium</title>
+  <link rel="stylesheet" href="mempool-aquarium.css">
+</head>
+<body>
+  <canvas id="tank" role="img" aria-label="Aquarium where each fish is a live Bitcoin transaction. Tap fish to catch them."></canvas>
+
+  <div class="hud hud-tl">
+    <div class="pill"><span class="lbl">Score</span><b id="score">0</b></div>
+    <div class="pill best"><span class="lbl">Best</span><b id="best">0</b></div>
+    <div id="combo" class="combo" hidden>x2</div>
+  </div>
+
+  <button id="sound" class="sound-btn" type="button" aria-label="Sound on" aria-pressed="true" title="Sound on/off">&#128266;</button>
+
+  <div id="banner" class="banner" hidden></div>
+  <div id="catch" class="catch" hidden></div>
+
+  <div class="hud hud-bottom">
+    <div class="legend" id="legend"></div>
+    <div class="status"><i id="dot" class="dot"></i><span id="statusText">Connecting&hellip;</span></div>
+  </div>
+
+  <script src="mempool-aquarium.js"></script>
+</body>
+</html>
