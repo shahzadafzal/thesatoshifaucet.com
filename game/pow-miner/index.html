@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>PoW Mini Miner</title>
+  <link rel="stylesheet" href="pow.css">
+  <link rel="stylesheet" href="../shared/share.css">
+</head>
+<body>
+  <div id="app">
+    <header class="top">
+      <div class="pill">
+        <span class="lbl">Sats earned (play money)</span>
+        <b id="score">0 sats</b>
+        <span class="sub" id="scoreBtc">0.00000000 BTC</span>
+      </div>
+      <div class="pill rec"><span class="lbl">Your record</span><span class="sub" id="record">0 bits</span></div>
+    </header>
+
+    <main class="content" id="content">
+      <div id="note" class="note" hidden></div>
+
+      <section class="card">
+        <div class="card-title">&#9889; Hash being tried right now</div>
+        <div class="hash" id="latestHash" aria-live="off"></div>
+        <div class="mini" id="latestMeta">Press <b>Start</b> to begin hashing.</div>
+      </section>
+
+      <section class="card best" id="bestCard">
+        <div class="card-title">&#127942; Your best hash this session</div>
+        <div class="bigbits"><b id="bestBits">0</b> <span>leading zero bits</span></div>
+        <div class="hash" id="bestHash"></div>
+        <div class="mini" id="bestMeta">Nothing yet &mdash; every extra zero bit is twice as rare as the last.</div>
+      </section>
+
+      <section class="stats">
+        <div class="stat"><span class="lbl">Speed</span><b id="rate">&mdash;</b></div>
+        <div class="stat"><span class="lbl">Hashes tried</span><b id="total">0</b></div>
+        <div class="stat"><span class="lbl">Time mining</span><b id="elapsed">0:00</b></div>
+      </section>
+
+      <section class="card">
+        <div class="card-title">&#128208; How far are you from a real Bitcoin block?</div>
+        <div class="ladder" role="img" aria-label="Your best leading zero bits compared with what a real Bitcoin block needs">
+          <div class="ladder-fill" id="ladderFill"></div>
+        </div>
+        <div class="ladder-scale"><span>0 bits</span><span id="ladderNeed">Bitcoin block &asymp; 79 bits</span></div>
+        <div class="mini">Each extra bit means <b>twice</b> as many guesses, so the bar is far less filled than it looks.</div>
+      </section>
+
+      <section class="card facts">
+        <div class="card-title">&#129504; Perspective</div>
+        <ul>
+          <li id="factOdds">Your best hash is a rare one &mdash; start hashing to find out how rare.</li>
+          <li id="factNet">Waiting for the live Bitcoin network numbers&hellip;</li>
+          <li id="factTime"></li>
+          <li id="factChain" class="muted"></li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="controls">
+      <div class="power" role="group" aria-label="Power level">
+        <button type="button" class="pw" data-power="eco">&#127793; Eco<small id="pwEco"></small></button>
+        <button type="button" class="pw active" data-power="balanced">&#9878;&#65039; Balanced<small id="pwBalanced"></small></button>
+        <button type="button" class="pw" data-power="turbo">&#128293; Turbo<small id="pwTurbo"></small></button>
+      </div>
+      <button id="startBtn" class="primary" type="button">&#9654; Start hashing</button>
+    </footer>
+  </div>
+
+  <button id="sound" class="round-btn sound-btn" type="button" aria-label="Sound on" aria-pressed="true" title="Sound on/off">&#128266;</button>
+  <button id="help" class="round-btn help-btn" type="button" aria-label="How it works" title="How it works">?</button>
+  <button id="fullscreen" class="round-btn fs-btn" type="button" aria-label="Full screen" title="Full screen" hidden>
+    <svg class="ic-enter" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    <svg class="ic-exit" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
+  </button>
+
+  <button id="share" class="round-btn share-btn" type="button" aria-label="Share this game" title="Share this game"
+          data-share-hash="PoW-Miner" data-share-title="PoW Mini Miner"
+          data-share-text="🔢 How many zeros can your device find? Try the PoW Mini Miner on The Satoshi Faucet!"
+          data-share-home="../../">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5l6.8-4M8.6 13.5l6.8 4"/></svg>
+  </button>
+
+  <div id="helpPanel" class="help" hidden role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="help-card">
+      <button id="helpClose" class="help-x" type="button" aria-label="Close help">&times;</button>
+      <h2 id="helpTitle">&#128295; How the PoW Mini Miner works</h2>
+
+      <h3>What is proof-of-work?</h3>
+      <p>Bitcoin miners compete to find a number (the <strong>nonce</strong>) that makes the
+      <strong>double SHA-256 hash</strong> of a block header begin with a long run of zeros. There is no
+      shortcut &mdash; the only way is to guess, billions upon billions of times. Every extra zero <em>bit</em>
+      makes a hash <strong>twice as rare</strong>, so it takes twice the guesses on average.</p>
+
+      <h3>What your device is doing</h3>
+      <ul>
+        <li>It builds a real-looking block header on top of the <strong>actual latest Bitcoin block</strong>
+        (<span id="helpTip">if we can reach mempool.space</span>) and hashes it again and again with a different nonce.</li>
+        <li>It counts the <strong>leading zero bits</strong> of every result and keeps your best one. Hashes are shown the
+        way Bitcoin shows them, with the zeros up front.</li>
+        <li>It runs the same SHA-256 maths real miners use, in background threads (Web Workers) so the page stays smooth.
+        We checked it against Bitcoin's very first block: it reproduces that hash exactly.</li>
+      </ul>
+
+      <h3>Scoring (in sats)</h3>
+      <ul>
+        <li>Every time you beat your best, you earn <strong>level &times; <span id="helpPerLevel">10</span> sats</strong> for each new
+        leading-zero level you reach. Reaching 20 bits for the first time pays 200 sats, 21 pays 210, and so on.</li>
+        <li>Levels get twice as hard each time, so early sats come fast and later ones are rare &mdash; just like real mining.</li>
+        <li>Your all-time record is saved on this device. <strong>It's play money:</strong> no real sats are paid out and
+        nothing is sent to our server.</li>
+      </ul>
+
+      <h3>Power levels</h3>
+      <ul>
+        <li><strong>Eco</strong> uses 1 thread &mdash; gentle on batteries. <strong>Balanced</strong> (default) uses about half
+        your cores. <strong>Turbo</strong> uses almost all of them: bigger numbers, but warmer and louder.</li>
+        <li>Phones use fewer threads than computers at each level, to protect the battery.</li>
+        <li>Hashing <strong>pauses automatically</strong> when you switch tabs, and takes a <strong>break after
+        <span id="helpAutoStop">20</span> minutes</strong> to save power. Tap Start to carry on.</li>
+      </ul>
+
+      <h3>Is this crypto-mining?</h3>
+      <p><strong>No &mdash; it can't earn you any Bitcoin.</strong> It only runs while this game is open, the hashes are
+      worthless, and nothing leaves your device. It's a demonstration of how hard real mining is.</p>
+
+      <h3>Fun comparison</h3>
+      <p>A single modern mining machine (an ASIC) does around 200 <em>trillion</em> hashes every second &mdash; roughly a hundred
+      million times a phone. The whole Bitcoin network is the equivalent of millions of those machines working together. Bitcoin's first-ever block hash
+      had 43 leading zero bits; today's blocks need around 79.</p>
+
+      <h3>Share it</h3>
+      <p>Tap the <strong>share button</strong> to send friends a link that opens this game straight away.</p>
+
+      <button id="helpOk" class="help-ok" type="button">Got it &mdash; let me play</button>
+    </div>
+  </div>
+
+  <script src="pow.js"></script>
+  <script src="../shared/share.js"></script>
+</body>
+</html>

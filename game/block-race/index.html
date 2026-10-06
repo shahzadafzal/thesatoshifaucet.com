@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Block Race</title>
+  <link rel="stylesheet" href="block-race.css">
+  <link rel="stylesheet" href="../shared/share.css">
+</head>
+<body>
+  <div id="app">
+    <div id="stageWrap">
+      <canvas id="stage" role="img" aria-label="The next Bitcoin block filling with live transactions, coloured by fee rate."></canvas>
+      <div id="stageMsg" class="stage-msg" hidden></div>
+    </div>
+
+    <div class="info" id="info">
+      <span id="sinceBlock">&#9935;&#65039; Last block: &hellip;</span>
+      <span id="cooldownTxt" hidden></span>
+      <span class="status"><i id="dot" class="dot"></i><span id="statusText">Connecting&hellip;</span></span>
+    </div>
+
+    <section class="panel" id="panel" aria-live="polite">
+      <div id="note" class="note" hidden></div>
+
+      <div id="viewLoading">
+        <p class="muted center">Connecting to mempool.space&hellip;</p>
+      </div>
+
+      <div id="viewGuess" hidden>
+        <h2>Round <span id="roundNo">1</span> &mdash; guess block #<span id="targetH">0</span></h2>
+
+        <div class="guess">
+          <label for="gTime"><span>&#9201;&#65039; Lands in</span> <b id="gTimeVal">10 min</b></label>
+          <input type="range" id="gTime" min="0.5" max="30" step="0.5" value="10">
+        </div>
+        <div class="guess">
+          <label for="gTx"><span>&#128230; Transactions</span> <b id="gTxVal">4,000</b></label>
+          <input type="range" id="gTx" min="500" max="12000" step="50" value="4000">
+          <small class="hint">Projected: <span id="projTx">&hellip;</span></small>
+        </div>
+        <div class="guess">
+          <label for="gFee"><span>&#128184; Median fee</span> <b id="gFeeVal">1.00 sat/vB</b></label>
+          <input type="range" id="gFee" min="0" max="1000" step="1" value="500">
+          <small class="hint">Projected: <span id="projFee">&hellip;</span></small>
+        </div>
+
+        <button id="lockBtn" class="primary" type="button">&#128274; Lock in my guesses</button>
+      </div>
+
+      <div id="viewWait" hidden>
+        <h2>&#128274; Locked in &mdash; waiting for block #<span id="targetH2">0</span></h2>
+        <ul class="locked">
+          <li>&#9201;&#65039; Lands in <b id="lkTime"></b></li>
+          <li>&#128230; Transactions <b id="lkTx"></b></li>
+          <li>&#128184; Median fee <b id="lkFee"></b></li>
+        </ul>
+        <p class="waiting">Waiting&hellip; <b id="elapsed">00:00</b> since you locked in <span class="dots"><i></i><i></i><i></i></span></p>
+        <p class="muted">Blocks arrive at random &mdash; sometimes in a minute, sometimes in half an hour. Watch the squares!</p>
+      </div>
+
+      <div id="viewResult" hidden>
+        <h2 id="resultTitle">&#9935;&#65039; Block found!</h2>
+        <p class="muted" id="resultBlock"></p>
+        <table class="results" id="resultRows"></table>
+        <div class="round-total" id="roundTotal"></div>
+        <p class="muted center" id="roundRating"></p>
+        <button id="nextBtn" class="primary" type="button">Next round &rarr;</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="hud hud-tl">
+    <div class="pill">
+      <span class="lbl">Sats earned (play money)</span>
+      <b id="score">0 sats</b>
+      <span class="sub" id="scoreBtc">0.00000000 BTC</span>
+    </div>
+    <div class="pill best"><span class="lbl">Best round</span><span class="sub" id="best">0 sats</span></div>
+  </div>
+
+  <button id="sound" class="round-btn sound-btn" type="button" aria-label="Sound on" aria-pressed="true" title="Sound on/off">&#128266;</button>
+  <button id="help" class="round-btn help-btn" type="button" aria-label="How to play" title="How to play">?</button>
+  <button id="fullscreen" class="round-btn fs-btn" type="button" aria-label="Full screen" title="Full screen" hidden>
+    <svg class="ic-enter" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    <svg class="ic-exit" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
+  </button>
+
+  <button id="share" class="round-btn share-btn" type="button" aria-label="Share this game" title="Share this game"
+          data-share-hash="Block-Race" data-share-title="Block Race"
+          data-share-text="⛏️ Can you guess the next Bitcoin block? Play Block Race on The Satoshi Faucet!"
+          data-share-home="../../">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5l6.8-4M8.6 13.5l6.8 4"/></svg>
+  </button>
+
+  <div id="helpPanel" class="help" hidden role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="help-card">
+      <button id="helpClose" class="help-x" type="button" aria-label="Close help">&times;</button>
+      <h2 id="helpTitle">&#9935;&#65039; How Block Race works</h2>
+
+      <h3>The big idea</h3>
+      <p>Bitcoin finds a new <strong>block</strong> about every 10 minutes &mdash; but only <em>on average</em>.
+      Real gaps range from under a minute to over half an hour. Each block is a batch of waiting transactions
+      that miners pick, <strong>highest fee first</strong>. Your goal: predict what the next block looks like.</p>
+
+      <h3>What you're looking at</h3>
+      <ul>
+        <li>The <strong>big square</strong> is the <em>next block</em>, as projected live by mempool.space. Each little
+        cell is a slice of the block's space, coloured by fee rate: <span class="c-low">blue</span> = cheap,
+        <span class="c-mid">green / yellow</span> = more, <span class="c-high">orange / red</span> = paying a premium.
+        The most expensive transactions sit at the top.</li>
+        <li>The <strong>two small squares</strong> are the blocks after that.</li>
+        <li><strong>Falling dots</strong> are real transactions arriving right now, landing in the block they'd
+        currently fit in. A dot too cheap for any projected block just sinks away.</li>
+      </ul>
+
+      <h3>How to play</h3>
+      <ul>
+        <li>Set your <strong>three guesses</strong>: when the block lands (counted from the moment you lock in), how many
+        transactions it holds, and its median fee rate (the typical fee its transactions pay).</li>
+        <li>Press <strong>Lock in</strong>, then wait for the real block. The moment it's found, you're scored.</li>
+        <li>If a block lands <em>before</em> you lock in, the round just restarts for the next block.</li>
+      </ul>
+
+      <h3>Scoring (in sats)</h3>
+      <ul>
+        <li>Each guess earns up to <strong id="helpMaxSats">1,000 sats</strong> depending on how accurate it was. A round is
+        worth up to <strong id="helpMaxRound">3,000 sats</strong>.</li>
+        <li>Accuracy is shown in plain English, e.g. <em>"you said 4,200, actual 4,581 &rarr; 92% accurate"</em>.
+        Being off by a factor of 2 on the fee scores 50%; being 4&times; off scores 0.</li>
+        <li>Your running total and your best round are shown top-left. <strong>It's play money</strong> &mdash; no real sats
+        are paid out, and nothing is sent to our server.</li>
+      </ul>
+
+      <h3>Good to know</h3>
+      <ul>
+        <li>The <strong>projection is a hint, not a promise.</strong> Miners choose differently and the mempool keeps
+        changing, so real blocks often differ. Time is pure luck: waiting longer never makes a block "due".</li>
+        <li>The <strong>faucet cooldown</strong> timer is shown under the squares. It's about one block long, but the game
+        doesn't stop when it ends &mdash; it keeps going until the block is found. When the faucet is ready, go claim your
+        sats!</li>
+        <li>All data comes straight to your browser from <strong>mempool.space</strong>, so nothing here loads our server
+        (apart from one quick cooldown check).</li>
+      </ul>
+
+      <h3>Share it</h3>
+      <p>Tap the <strong>share button</strong> to send friends a link that opens this game straight away.</p>
+
+      <button id="helpOk" class="help-ok" type="button">Got it &mdash; let me play</button>
+    </div>
+  </div>
+
+  <script src="block-race.js"></script>
+  <script src="../shared/share.js"></script>
+</body>
+</html>

@@ -3,7 +3,8 @@
  * Every fish is a real, unconfirmed Bitcoin transaction streamed from mempool.space
  * straight to the visitor's browser (nothing goes through our server). Fish size grows
  * with the log of the transaction's total output value; colour comes from its fee rate.
- * Tap fish to catch them. Play-money points only, best score kept in localStorage.
+ * Tap fish to catch them. Your score is the total value (in sats / BTC) of the transactions
+ * you catch. Play money only: nothing is paid out. Best score is kept in localStorage.
  */
 (() => {
   'use strict';
@@ -16,9 +17,12 @@
     sharkSats: 1e7,      // 0.1 BTC -> shark
     fishSats: 1e5,       // 0.001 BTC -> fish   (below this: shrimp)
 
-    points: { shrimp: 1, fish: 3, shark: 10, whale: 50 },
+    // Score = total value (sats) of the transactions you catch. A streak (catches within
+    // comboWindowMs of each other) is counted without limit and raises the catch-sound pitch
+    // (up to pitchStreakCap steps, so long streaks don't squeal); it does not change the score.
     comboWindowMs: 1800,
-    comboMax: 5,
+    pitchStreakCap: 5,
+    helpOnFirstVisit: true,   // open the "how it works" panel the first time someone plays
 
     apiBase: 'https://mempool.space/api',
     pollMs: 4000,
@@ -35,7 +39,9 @@
     minRadius: 11,
     maxRadius: 84,
 
-    storageKey: 'satoshiFaucet.aquarium.best',
+    // New key: older versions stored "points", which must not be read back as sats.
+    storageKey: 'satoshiFaucet.aquarium.bestSats',
+    helpKey: 'satoshiFaucet.aquarium.helpSeen',
     soundKey: 'satoshiFaucet.aquarium.sound',   // '0' = muted
     masterVolume: 0.5,                           // 0..1
   };
@@ -67,6 +73,9 @@
     }
     return Math.round(sats).toLocaleString('en-US') + ' sats';
   }
+
+  const fmtSats = (n) => Math.round(n).toLocaleString('en-US') + ' sats';
+  const fmtBtc = (n) => (n / 1e8).toFixed(8) + ' BTC';
 
   function shortTxid(txid) {
     return txid.slice(0, 6) + '…' + txid.slice(-6);
@@ -439,10 +448,9 @@
     const idx = fish.indexOf(f);
     if (idx >= 0) fish.splice(idx, 1);
 
-    combo = (now - lastCatchAt <= CONFIG.comboWindowMs) ? Math.min(combo + 1, CONFIG.comboMax) : 1;
+    combo = (now - lastCatchAt <= CONFIG.comboWindowMs) ? combo + 1 : 1;
     lastCatchAt = now;
-    const pts = CONFIG.points[f.tier] * combo;
-    score += pts;
+    score += f.sats;
     caught += 1;
     if (score > best) {
       best = score;
@@ -457,12 +465,12 @@
       particles.push({ x: f.x, y: f.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30, r: rand(2, 6) * S, life: rand(0.5, 1), age: 0,
         gold: f.tier === 'whale' });
     }
-    floaters.push({ x: f.x, y: f.y - f.r * 0.5, text: '+' + pts + (combo > 1 ? ' x' + combo : ''), age: 0, big: f.tier === 'whale' });
+    floaters.push({ x: f.x, y: f.y - f.r * 0.5, text: '+' + fmtValue(f.sats), age: 0, big: f.tier === 'whale' });
     if (f.tier === 'whale') flash = 1;
 
     if (f.tier === 'whale') sfx.catchWhale();
-    else if (f.tier === 'shark') sfx.catchShark(combo);
-    else sfx.catchSmall(combo);
+    else if (f.tier === 'shark') sfx.catchShark(Math.min(combo, CONFIG.pitchStreakCap));
+    else sfx.catchSmall(Math.min(combo, CONFIG.pitchStreakCap));
 
     updateHud();
     showCatch(f);
@@ -479,10 +487,11 @@
   }
 
   function updateHud() {
-    $('score').textContent = score.toLocaleString('en-US');
-    $('best').textContent = best.toLocaleString('en-US');
+    $('score').textContent = fmtSats(score);
+    $('scoreBtc').textContent = fmtBtc(score);
+    $('best').textContent = fmtSats(best) + ' · ' + fmtBtc(best);
     const c = $('combo');
-    if (combo > 1) { c.textContent = 'x' + combo; c.hidden = false; c.style.animation = 'none'; void c.offsetWidth; c.style.animation = ''; }
+    if (combo > 1) { c.textContent = '🔥 ' + combo + ' streak'; c.hidden = false; c.style.animation = 'none'; void c.offsetWidth; c.style.animation = ''; }
     else c.hidden = true;
   }
 
@@ -503,6 +512,20 @@
       el.appendChild(a);
     }
     el.hidden = false;
+  }
+
+  // Help panel: tier list is built from CONFIG so it always matches the real thresholds.
+  function buildHelpTiers() {
+    const th = (s) => (s >= 1e6 ? (s / 1e8) + ' BTC' : (s / 1e3) + 'k sats');
+    const rows = [
+      ['shrimp', 'under ' + th(CONFIG.fishSats), 'small and common'],
+      ['fish', th(CONFIG.fishSats) + ' to ' + th(CONFIG.sharkSats), 'everyday payments'],
+      ['shark', th(CONFIG.sharkSats) + ' to ' + th(CONFIG.whaleSats), 'big movers, with a bigger fin'],
+      ['whale', th(CONFIG.whaleSats) + ' and up', 'rare, golden and glowing'],
+    ];
+    $('helpTiers').innerHTML = rows.map((r) =>
+      '<li>' + TIERS[r[0]].icon + ' <strong>' + TIERS[r[0]].name + '</strong> &mdash; ' + r[1] + ' (' + r[2] + ')</li>'
+    ).join('');
   }
 
   function buildLegend() {
@@ -741,6 +764,81 @@
   soundBtn.addEventListener('click', () => { sfx.toggle(); renderSoundBtn(); });
   renderSoundBtn();
 
+  // Help panel (? button). Opens automatically on a player's first visit.
+  const helpPanel = $('helpPanel');
+  function openHelp() {
+    helpPanel.hidden = false;
+    $('helpOk').focus({ preventScroll: true });
+    try { localStorage.setItem(CONFIG.helpKey, '1'); } catch (e) { /* ignore */ }
+  }
+  function closeHelp() { helpPanel.hidden = true; sfx.unlock(); }
+  $('help').addEventListener('click', openHelp);
+  $('helpClose').addEventListener('click', closeHelp);
+  $('helpOk').addEventListener('click', closeHelp);
+  helpPanel.addEventListener('click', (e) => { if (e.target === helpPanel) closeHelp(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !helpPanel.hidden) closeHelp(); });
+
+  // Full screen. Uses the real Fullscreen API where the browser allows it (desktop, Android,
+  // iPad). Where it doesn't (iPhone Safari, or an iframe without permission) it asks the
+  // parent page to stretch the popup to fill the screen instead. Hidden if neither is possible.
+  const fsBtn = $('fullscreen');
+  const root = document.documentElement;
+  const inFrame = window.parent !== window;
+  const fsApi = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  let maximized = false;
+
+  const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;
+
+  function renderFs() {
+    const real = !!fsElement();
+    document.body.classList.toggle('is-fs', real);
+    document.body.classList.toggle('is-max', maximized && !real);
+    const on = real || maximized;
+    fsBtn.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
+    fsBtn.title = on ? 'Exit full screen' : 'Full screen';
+    setTimeout(resize, 120);   // let the layout settle, then fit the canvas
+  }
+
+  function toggleMaximize() {
+    if (!inFrame) return;
+    maximized = !maximized;
+    window.parent.postMessage({ type: 'game-maximize', on: maximized }, '*');
+    renderFs();
+  }
+
+  async function toggleFullscreen() {
+    sfx.unlock();
+    if (fsElement()) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      return;
+    }
+    if (maximized) { toggleMaximize(); return; }
+    if (fsApi) {
+      const req = root.requestFullscreen || root.webkitRequestFullscreen;
+      try {
+        // Some embedded browsers never answer the request, so don't wait forever.
+        const p = req.call(root);
+        await Promise.race([
+          p && p.then ? p : new Promise((r) => setTimeout(r, 500)),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('fullscreen timeout')), 900)),
+        ]);
+        if (fsElement()) return;
+      } catch (e) { /* fall back to maximise below */ }
+      if (fsElement()) return;
+    }
+    if (!maximized) toggleMaximize();   // (a fullscreenerror may already have done it)
+  }
+
+  if (fsApi || inFrame) {
+    fsBtn.hidden = false;
+    fsBtn.addEventListener('click', toggleFullscreen);
+    document.addEventListener('fullscreenchange', renderFs);
+    document.addEventListener('webkitfullscreenchange', renderFs);
+    const onFsError = () => { if (!fsElement() && !maximized) toggleMaximize(); };
+    document.addEventListener('fullscreenerror', onFsError);
+    document.addEventListener('webkitfullscreenerror', onFsError);
+  }
+
   document.addEventListener('visibilitychange', () => {
     sfx.visibility(document.hidden);
     if (document.hidden) stop(); else start();
@@ -749,9 +847,16 @@
   window.addEventListener('orientationchange', () => setTimeout(resize, 150));
 
   buildLegend();
+  buildHelpTiers();
   resize();
   updateHud();
   setStatus('connecting');
   start();
   poll();
+
+  if (CONFIG.helpOnFirstVisit) {
+    let seen = false;
+    try { seen = localStorage.getItem(CONFIG.helpKey) === '1'; } catch (e) { /* ignore */ }
+    if (!seen) openHelp();
+  }
 })();

@@ -1,0 +1,41 @@
+/* Share button + fallback menu (shared by all games). Relies on each game's .round-btn styles
+   and its --rb-top variable for the button column. */
+.share-btn { top: calc(var(--rb-top, 58px) + 138px + env(safe-area-inset-top)); }
+.share-btn svg { width: 18px; height: 18px; display: block; margin: auto; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.share-backdrop { position: fixed; inset: 0; z-index: 19; background: transparent; }
+.share-backdrop[hidden] { display: none; }
+
+.share-menu {
+  position: fixed;
+  z-index: 20;
+  width: 232px;
+  padding: 8px;
+  border-radius: 14px;
+  background: #121a29;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  color: #eef2f8;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 0.9rem;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.share-menu[hidden] { display: none; }
+.share-menu-title { padding: 4px 8px 6px; font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.6; }
+.share-menu a, .share-menu button {
+  display: block;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.share-menu a:hover, .share-menu button:hover, .share-menu a:focus-visible, .share-menu button:focus-visible { background: rgba(255, 255, 255, 0.1); outline: none; }
+.share-menu-status { min-height: 1.2em; padding: 2px 10px; font-size: 0.8rem; color: #4ade80; word-break: break-all; }
+.share-menu-hint { padding: 4px 10px 6px; font-size: 0.7rem; line-height: 1.35; opacity: 0.55; }

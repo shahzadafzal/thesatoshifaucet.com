@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<link rel="stylesheet" href="assets/style.css?v=202606150223" />
+<link rel="stylesheet" href="assets/style.css?v=202610062237" />
 
 <head>
   <meta charset="UTF-8" />
@@ -122,27 +122,7 @@ earn bitcoin free
             </div>
             <div id="cooldown-message" style="white-space: pre-line; margin-top:10px; font-size:0.95rem; color:#b05a00; min-height:1.35em;"></div>
             <div class="status-message" id="status-message" aria-live="polite"></div>
-            <!-- Play while you wait. To add a game: set data-game-url + data-game-title and drop the "soon" class/disabled. -->
-            <div class="game-tiles" aria-label="Play while you wait">
-              <div class="game-tiles-title">🎮 Play while you wait</div>
-              <div class="game-tiles-row">
-                <button type="button" class="game-tile" data-game-url="game/mempool-aquarium" data-game-title="Mempool Aquarium">
-                  <span class="game-tile-icon">🐋</span>
-                  <strong>Mempool Aquarium</strong>
-                  <small>Catch live Bitcoin transactions</small>
-                </button>
-                <button type="button" class="game-tile game-tile-soon" disabled>
-                  <span class="game-tile-icon">⛏️</span>
-                  <strong>Block Race</strong>
-                  <small>Coming soon</small>
-                </button>
-                <button type="button" class="game-tile game-tile-soon" disabled>
-                  <span class="game-tile-icon">🔢</span>
-                  <strong>PoW Mini Miner</strong>
-                  <small>Coming soon</small>
-                </button>
-              </div>
-            </div>
+            
 
             <!-- QR scan / upload buttons -->
             <div class="qr-btn-row">
@@ -184,7 +164,27 @@ earn bitcoin free
               <a href="how-to-get-lnurl" rel="noopener">How to get your LNURL</a>
             </p>
 
-            
+            <!-- Play while you wait. To add a game: set data-game-url + data-game-title + data-game-hash (the #link name, e.g. #Block-Race) and drop the "soon" class/disabled. -->
+            <div class="game-tiles" aria-label="Play while you wait">
+              <div class="game-tiles-title">🎮 Play while you wait</div>
+              <div class="game-tiles-row">
+                <button type="button" class="game-tile" data-game-url="game/mempool-aquarium" data-game-title="Mempool Aquarium" data-game-hash="Mempool_Aquarium">
+                  <span class="game-tile-icon">🐋</span>
+                  <strong>Mempool Aquarium</strong>
+                  <small>Catch live Bitcoin transactions</small>
+                </button>
+                <button type="button" class="game-tile" data-game-url="game/block-race/" data-game-title="Block Race" data-game-hash="Block-Race">
+                  <span class="game-tile-icon">⛏️</span>
+                  <strong>Block Race</strong>
+                  <small>Guess the next Bitcoin block</small>
+                </button>
+                <button type="button" class="game-tile" data-game-url="game/pow-miner/" data-game-title="PoW Mini Miner" data-game-hash="PoW-Miner">
+                  <span class="game-tile-icon">🔢</span>
+                  <strong>PoW Mini Miner</strong>
+                  <small>How many zeros can your device find?</small>
+                </button>
+              </div>
+            </div>
           </form>
         </div>
 
@@ -815,42 +815,126 @@ earn bitcoin free
       const iframe = overlay.querySelector('iframe');
       const closeBtn = overlay.querySelector('.game-popup-close');
 
-      function openGame(url, title) {
-        box.setAttribute('aria-label', title || 'Game');
-        iframe.title = title || 'Game';
-        iframe.src = url;
+      // ---- Deep links ----------------------------------------------------------------------
+      // https://thesatoshifaucet.com/#Mempool_Aquarium  (also #Block-Race, #PoW-Miner) opens that game.
+      // Matching ignores case and treats "_" and "-" the same. Opening a game from its tile sets the
+      // URL fragment, Back closes the game, and closing it removes the fragment again.
+      const norm = function (s) { return String(s || '').replace(/^#/, '').toLowerCase().replace(/_/g, '-'); };
+
+      const games = Array.prototype.map.call(document.querySelectorAll('[data-game-url]'), function (el) {
+        return {
+          url: el.getAttribute('data-game-url'),
+          title: el.getAttribute('data-game-title'),
+          hash: el.getAttribute('data-game-hash'),
+          el: el
+        };
+      });
+
+      function gameFromHash() {
+        var h = window.location.hash;
+        try { h = decodeURIComponent(h); } catch (e) { /* keep raw */ }
+        var key = norm(h);
+        if (!key) return null;
+        for (var i = 0; i < games.length; i++) {
+          if (games[i].hash && norm(games[i].hash) === key) return games[i];
+        }
+        return null;
+      }
+
+      var current = null;   // the game currently shown in the popup
+      var pushed = false;   // did we add a history entry for it (so Back should close it)?
+
+      function showGame(game) {
+        current = game;
+        box.setAttribute('aria-label', game.title || 'Game');
+        iframe.title = game.title || 'Game';
+        iframe.src = game.url;
+        overlay.classList.remove('is-max');
         overlay.classList.add('is-open');
         document.body.classList.add('game-popup-active');
       }
 
-      function closeGame() {
+      function hideGame() {
+        current = null;
         overlay.classList.remove('is-open');
+        overlay.classList.remove('is-max');
         document.body.classList.remove('game-popup-active');
 
         // Reset game every time popup closes (also stops its network polling)
         iframe.src = '';
       }
 
-      document.querySelectorAll('[data-game-url]').forEach(function (el) {
-        el.addEventListener('click', function (event) {
+      // The user tapped a game tile.
+      function openFromTile(game) {
+        showGame(game);
+        if (game.hash) {
+          try { history.pushState(null, '', '#' + game.hash); pushed = true; }
+          catch (e) { window.location.hash = game.hash; }
+        }
+      }
+
+      // The user closed the popup (X button, backdrop or Esc).
+      function closeByUser() {
+        if (!current) return;
+        hideGame();
+        if (gameFromHash()) {
+          if (pushed) {
+            pushed = false;
+            history.back();   // undo the entry we pushed; the page stays where it was
+          } else {
+            try { history.replaceState(null, '', window.location.pathname + window.location.search); }
+            catch (e) { window.location.hash = ''; }
+          }
+        }
+      }
+
+      // The address changed (page load, Back/Forward, or someone edited the URL).
+      function syncFromHash() {
+        pushed = false;
+        var game = gameFromHash();
+        if (game) {
+          if (current !== game) showGame(game);
+        } else if (current) {
+          hideGame();
+        }
+      }
+
+      games.forEach(function (game) {
+        game.el.addEventListener('click', function (event) {
           event.preventDefault();
-          openGame(el.getAttribute('data-game-url'), el.getAttribute('data-game-title'));
+          openFromTile(game);
         });
       });
 
-      closeBtn.addEventListener('click', closeGame);
+      window.addEventListener('hashchange', syncFromHash);
+      window.addEventListener('popstate', syncFromHash);
+
+      closeBtn.addEventListener('click', closeByUser);
+
+      // Games can ask the popup to fill the whole screen (used where the browser has no real
+      // Fullscreen API, e.g. iPhone Safari). Only our own game iframe is trusted to do this.
+      window.addEventListener('message', function (event) {
+        if (event.source !== iframe.contentWindow || event.origin !== window.location.origin) return;
+        var data = event.data;
+        if (data && data.type === 'game-maximize') {
+          overlay.classList.toggle('is-max', !!data.on);
+        }
+      });
 
       overlay.addEventListener('click', function (event) {
         if (event.target === overlay) {
-          closeGame();
+          closeByUser();
         }
       });
 
       document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape' && overlay.classList.contains('is-open')) {
-          closeGame();
+          closeByUser();
         }
       });
+
+      // A link like /#Block-Race opens that game as soon as the page loads.
+      syncFromHash();
     })();
   </script>
 

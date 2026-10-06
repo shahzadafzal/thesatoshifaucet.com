@@ -5,17 +5,93 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <title>Mempool Aquarium</title>
   <link rel="stylesheet" href="mempool-aquarium.css">
+  <link rel="stylesheet" href="shared/share.css">
 </head>
 <body>
   <canvas id="tank" role="img" aria-label="Aquarium where each fish is a live Bitcoin transaction. Tap fish to catch them."></canvas>
 
   <div class="hud hud-tl">
-    <div class="pill"><span class="lbl">Score</span><b id="score">0</b></div>
-    <div class="pill best"><span class="lbl">Best</span><b id="best">0</b></div>
+    <div class="pill">
+      <span class="lbl">Caught (total value)</span>
+      <b id="score">0 sats</b>
+      <span class="sub" id="scoreBtc">0.00000000 BTC</span>
+    </div>
+    <div class="pill best"><span class="lbl">Best</span><span class="sub" id="best">0 sats</span></div>
     <div id="combo" class="combo" hidden>x2</div>
   </div>
 
-  <button id="sound" class="sound-btn" type="button" aria-label="Sound on" aria-pressed="true" title="Sound on/off">&#128266;</button>
+  <button id="sound" class="round-btn sound-btn" type="button" aria-label="Sound on" aria-pressed="true" title="Sound on/off">&#128266;</button>
+  <button id="help" class="round-btn help-btn" type="button" aria-label="How to play" title="How to play">?</button>
+  <button id="fullscreen" class="round-btn fs-btn" type="button" aria-label="Full screen" title="Full screen" hidden>
+    <svg class="ic-enter" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    <svg class="ic-exit" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
+  </button>
+
+  <button id="share" class="round-btn share-btn" type="button" aria-label="Share this game" title="Share this game"
+          data-share-hash="Mempool_Aquarium" data-share-title="Mempool Aquarium"
+          data-share-text="🐋 Catch live Bitcoin transactions as fish in the Mempool Aquarium — free to play on The Satoshi Faucet!"
+          data-share-home="../">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5l6.8-4M8.6 13.5l6.8 4"/></svg>
+  </button>
+
+  <div id="helpPanel" class="help" hidden role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="help-card">
+      <button id="helpClose" class="help-x" type="button" aria-label="Close help">&times;</button>
+      <h2 id="helpTitle">&#128011; How the Mempool Aquarium works</h2>
+
+      <h3>What you're looking at</h3>
+      <p>Every fish is a <strong>real, unconfirmed Bitcoin transaction</strong> that is waiting in the
+      <em>mempool</em> &mdash; the queue of payments miners haven't put into a block yet. Your browser asks
+      <strong>mempool.space</strong> for the newest ones about every 4 seconds, so nothing here loads our server.</p>
+
+      <h3>How to play</h3>
+      <ul>
+        <li><strong>Tap or click a fish to catch it.</strong> Aim a little generously &mdash; fingers are fat.</li>
+        <li><strong>Your score is the total value you've caught</strong>, shown in <strong>sats</strong> and
+        <strong>BTC</strong> (1 BTC = 100,000,000 sats). One whale can outweigh hundreds of shrimp.</li>
+        <li><strong>Streaks:</strong> catch fish in quick succession (about 2 seconds apart) and the catch sounds
+        climb in pitch. It's just for fun &mdash; it doesn't change your score.</li>
+        <li>After a catch, tap <strong>View &#8599;</strong> to open that exact transaction on mempool.space.</li>
+        <li>Tap the <strong>corner arrows</strong> button for <strong>full screen</strong> (on iPhone it expands the game to
+        fill the screen instead).</li>
+      </ul>
+
+      <h3>Fish types</h3>
+      <ul id="helpTiers" class="tiers"></ul>
+
+      <h3>Size &amp; colour</h3>
+      <ul>
+        <li><strong>Size</strong> follows the <em>logarithm</em> of the value, so a 1 BTC fish isn't a
+        thousand times bigger than a 0.001 BTC one &mdash; it would never fit on screen.</li>
+        <li><strong>Colour</strong> shows the <em>fee rate</em>: <span class="c-low">blue</span> = cheap fee
+        (patient sender), <span class="c-mid">green / yellow</span> = paying more, <span class="c-high">orange / red</span>
+        = paying a premium to jump the queue. Whales are always gold.</li>
+      </ul>
+
+      <h3>Good to know</h3>
+      <ul>
+        <li><strong>Whales are rare.</strong> mempool.space only hands over the 10 newest transactions per request,
+        so you see a live sample, not every payment. A real 1 BTC+ transaction turns up only now and then &mdash;
+        you'll hear a sonar ping and see a banner when one appears.</li>
+        <li><strong>The value shown is the transaction's total outputs</strong>, which includes any change sent back to
+        the sender &mdash; so a fish can look bigger than what was really "spent".</li>
+        <li><strong>"Unconfirmed" is temporary.</strong> A new Bitcoin block arrives roughly every 10 minutes and
+        confirms the transactions it includes, which then leave the mempool &mdash; the same rhythm as the faucet's
+        cooldown.</li>
+        <li>If the connection to mempool.space drops, the tank switches to <strong>simulated fish</strong> and the status
+        bar says so.</li>
+      </ul>
+
+      <h3>Just a game</h3>
+      <p>It's play money: <strong>no sats are paid out</strong> for your score and nothing is sent to our server.
+      Your best score is saved on this device only. Use the speaker button to mute the sounds.</p>
+
+      <h3>Share it</h3>
+      <p>Tap the <strong>share button</strong> to send friends a link that opens this game straight away.</p>
+
+      <button id="helpOk" class="help-ok" type="button">Got it &mdash; let me play</button>
+    </div>
+  </div>
 
   <div id="banner" class="banner" hidden></div>
   <div id="catch" class="catch" hidden></div>
@@ -26,5 +102,6 @@
   </div>
 
   <script src="mempool-aquarium.js"></script>
+  <script src="shared/share.js"></script>
 </body>
 </html>

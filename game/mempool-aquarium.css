@@ -36,8 +36,9 @@ html, body {
   top: 0;
   left: 0;
   display: flex;
-  gap: 8px;
-  align-items: stretch;
+  flex-direction: column;
+  gap: 5px;
+  align-items: flex-start;
   padding-top: max(10px, env(safe-area-inset-top));
 }
 
@@ -51,11 +52,14 @@ html, body {
   -webkit-backdrop-filter: blur(4px);
 }
 .pill .lbl { display: block; font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.7; }
-.pill b { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
-.pill.best b { color: #ffd166; }
+.pill b { display: block; font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.pill .sub { display: block; font-size: 0.72rem; opacity: 0.8; font-variant-numeric: tabular-nums; }
+.pill.best { padding: 3px 10px; }
+.pill.best .lbl { display: inline; margin-right: 6px; }
+.pill.best .sub { display: inline; color: #ffd166; opacity: 1; }
 
 .combo {
-  align-self: center;
+  align-self: flex-start;
   background: #ff9f1c;
   color: #2b1600;
   font-weight: 800;
@@ -68,12 +72,25 @@ html, body {
 
 @keyframes pop { from { transform: scale(0.6); } to { transform: scale(1); } }
 
-/* Sits just left of the popup's close button (top-right). */
-.sound-btn {
+/* Round buttons form a column under the popup's close button (top-right):
+   sound, help, full screen. In real full screen there is no popup close button,
+   so the column moves up to the corner. */
+:root { --rb-top: 58px; }
+body.is-fs { --rb-top: 10px; }
+
+.sound-btn { top: calc(var(--rb-top) + env(safe-area-inset-top)); }
+.help-btn { top: calc(var(--rb-top) + 46px + env(safe-area-inset-top)); font-weight: 800; font-family: inherit; }
+.fs-btn { top: calc(var(--rb-top) + 92px + env(safe-area-inset-top)); }
+.fs-btn[hidden] { display: none; }
+.fs-btn svg { width: 18px; height: 18px; display: block; margin: auto; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.fs-btn .ic-exit { display: none; }
+body.is-fs .fs-btn .ic-enter, body.is-max .fs-btn .ic-enter { display: none; }
+body.is-fs .fs-btn .ic-exit, body.is-max .fs-btn .ic-exit { display: block; }
+
+.round-btn {
   position: fixed;
   z-index: 4;
-  top: max(10px, env(safe-area-inset-top));
-  right: max(58px, calc(env(safe-area-inset-right) + 50px));
+  right: max(11px, calc(env(safe-area-inset-right) + 8px));
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -86,8 +103,81 @@ html, body {
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
 }
-.sound-btn:hover { background: rgba(2, 18, 30, 0.85); }
+.round-btn:hover { background: rgba(2, 18, 30, 0.85); }
 .sound-btn.off { opacity: 0.6; }
+
+/* ---- Help panel ---- */
+.help {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(1, 10, 18, 0.78);
+  touch-action: pan-y;
+}
+.help[hidden] { display: none; }
+
+.help-card {
+  position: relative;
+  width: min(100%, 560px);
+  max-height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding: 18px 20px 20px;
+  border-radius: 16px;
+  background: #0a2a42;
+  border: 1px solid rgba(160, 220, 255, 0.3);
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.5);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.help-card h2 { margin: 0 34px 10px 0; font-size: 1.15rem; }
+.help-card h3 { margin: 14px 0 4px; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: #7dd3fc; }
+.help-card p { margin: 0 0 6px; }
+.help-card ul { margin: 0; padding-left: 18px; }
+.help-card li { margin-bottom: 4px; }
+.help-card ul.tiers { list-style: none; padding-left: 0; }
+.help-card ul.tiers li { margin-bottom: 2px; }
+.help-card em { color: #cfeaff; }
+.c-low { color: #60a5fa; font-weight: 700; }
+.c-mid { color: #4ade80; font-weight: 700; }
+.c-high { color: #fb923c; font-weight: 700; }
+
+.help-x {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.help-x:hover { background: rgba(255, 255, 255, 0.2); }
+
+.help-ok {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  padding: 11px 14px;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0ea5e9, #0369a1);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
 
 .banner {
   position: fixed;

@@ -763,6 +763,18 @@ body.game-popup-active {
   overflow: hidden;
 }
 
+/* Maximised popup (fallback "full screen" where the browser has no Fullscreen API). */
+.game-popup-overlay.is-max {
+  padding: 0;
+}
+
+.game-popup-overlay.is-max .game-popup-box {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  border-radius: 0;
+}
+
 @media (max-width: 768px) {
   .game-popup-overlay {
     padding: 8px;
