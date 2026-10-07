@@ -114,11 +114,13 @@ body.is-fs .fs-btn .ic-exit, body.is-max .fs-btn .ic-exit { display: block; }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12px;
+  /* top padding keeps the card clear of the popup's own close button (top-right of the page) */
+  padding: 60px 12px 12px;
   background: rgba(1, 10, 18, 0.78);
   touch-action: pan-y;
 }
 .help[hidden] { display: none; }
+body.is-fs .help { padding-top: 12px; }   /* real full screen has no popup close button */
 
 .help-card {
   position: relative;
