@@ -204,6 +204,23 @@
     return S.elapsedMs + (S.running ? performance.now() - S.runStart : 0);
   }
 
+  // The "how long would a real block take" line is the showpiece, so its duration gets its own
+  // big, bright span (styled in pow.css). updateFacts runs twice a second, so only rebuild on change.
+  function setFactTime(lead, big, tail) {
+    const el = $('factTime');
+    const key = lead + '|' + big + '|' + tail;
+    if (el.dataset.key === key) return;
+    el.dataset.key = key;
+    el.textContent = '';
+    if (!big) return;
+    el.appendChild(document.createTextNode(lead));
+    const strong = document.createElement('strong');
+    strong.className = 'time-big';
+    strong.textContent = big;
+    el.appendChild(strong);
+    el.appendChild(document.createTextNode(tail));
+  }
+
   function updateFacts() {
     const rate = S.rate;
     $('factOdds').textContent = S.bestBits > 0
@@ -218,10 +235,10 @@
 
     if (rate > 0) {
       const years = (net.difficulty * 4294967296) / rate / 31557600;
-      $('factTime').textContent = 'At your speed, finding a real Bitcoin block would take about ' + fmtYears(years) +
-        (years > 13.8e9 ? ' — longer than the universe has existed (13.8 billion years).' : '.');
+      setFactTime('At your speed, finding a real Bitcoin block would take about ', fmtYears(years),
+        years > 13.8e9 ? ' — longer than the universe has existed (13.8 billion years).' : '.');
     } else {
-      $('factTime').textContent = '';
+      setFactTime('', '', '');
     }
 
     $('factChain').textContent = chain.live
