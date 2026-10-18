@@ -58,6 +58,14 @@ html, body {
 .pill.best .lbl { display: inline; margin-right: 6px; }
 .pill.best .sub { display: inline; color: #ffd166; opacity: 1; }
 
+/* How many of each animal you've caught this game */
+.pill.counts { display: flex; gap: 12px; padding: 4px 11px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; line-height: 1; }
+.chip i { font-style: normal; font-size: 1rem; }
+.chip b { display: inline; font-size: 0.95rem; min-width: 1ch; text-align: left; }
+.chip.bump b { animation: chipBump 0.45s ease-out; color: #ffd166; }
+@keyframes chipBump { 0% { transform: scale(1.7); } 100% { transform: scale(1); } }
+
 .combo {
   align-self: flex-start;
   background: #ff9f1c;
@@ -181,48 +189,21 @@ body.is-fs .help { padding-top: 12px; }   /* real full screen has no popup close
   cursor: pointer;
 }
 
-.banner {
-  position: fixed;
-  z-index: 3;
-  top: 62px;
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: calc(100% - 24px);
-  padding: 8px 18px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #ffd166, #f4a300);
-  color: #3a2200;
-  font-weight: 800;
-  font-size: 1rem;
+/* The whale banner and the "caught" card are now drawn on the canvas, UNDER the animals (so fish
+   swim in front of them). These elements remain only as visually-hidden text for screen readers. */
+.banner, .catch {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
   white-space: nowrap;
-  box-shadow: 0 6px 24px rgba(255, 190, 40, 0.45);
-  pointer-events: none;
-  animation: bannerIn 0.35s ease-out;
+  border: 0;
 }
-.banner[hidden] { display: none; }
-@keyframes bannerIn { from { opacity: 0; transform: translate(-50%, -14px); } to { opacity: 1; transform: translate(-50%, 0); } }
-
-.catch {
-  position: fixed;
-  z-index: 3;
-  left: 50%;
-  bottom: 64px;
-  transform: translateX(-50%);
-  width: min(calc(100% - 24px), 440px);
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: rgba(2, 18, 30, 0.78);
-  border: 1px solid rgba(160, 220, 255, 0.25);
-  font-size: 0.82rem;
-  line-height: 1.35;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-.catch[hidden] { display: none; }
-.catch a { color: #7dd3fc; font-weight: 600; white-space: nowrap; }
-.catch .sim { opacity: 0.6; white-space: nowrap; }
+.banner[hidden], .catch[hidden] { display: none; }
 
 .hud-bottom {
   left: 0;
@@ -249,6 +230,5 @@ body.is-fs .help { padding-top: 12px; }   /* real full screen has no popup close
 
 @media (max-width: 480px) {
   .pill b { font-size: 1.05rem; }
-  .banner { font-size: 0.88rem; top: 58px; }
   .hud-bottom { font-size: 0.66rem; }
 }

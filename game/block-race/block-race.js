@@ -38,7 +38,13 @@
   };
 
   /* ================= Helpers ================= */
+  // `$('hintTime')` takes a plain element id (it is just document.getElementById), NOT a CSS selector,
+  // so there is no "#" and no jQuery-style lookup. Don't confuse it with jQuery's $('#hintTime').
   const $ = (id) => document.getElementById(id);
+
+  // Set an element's text, quietly skipping it if the page doesn't have that element. This keeps the game
+  // running if the page file and this script ever get out of step (e.g. only one of them was uploaded).
+  const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, t) => a + (b - a) * t;
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -145,7 +151,9 @@
   let W = 0, H = 0, dpr = 1, ts = 1;
   let bgGrad = null;
 
-  const feed = { tip: null, lastBlockAt: null, projected: [], wsOpen: false, restOk: false, status: 'connecting' };
+  // `blocks` remembers recent blocks by height ({height, timestamp (s), tx_count, medianFee, pool}) so the
+  // previous block can be shown as the players' reference and used as the starting point for timing.
+  const feed = { tip: null, lastBlockAt: null, projected: [], blocks: {}, wsOpen: false, restOk: false, status: 'connecting' };
 
   let geo = [];            // on-screen rectangles for up to 3 blocks
   let cells = [];          // per projected block: { side, count, rates, colors }
@@ -278,9 +286,10 @@
       ctx.font = '800 ' + Math.round(13 * ts) + 'px -apple-system, "Segoe UI", Roboto, sans-serif';
       ctx.fillStyle = '#f7931a';
       ctx.fillText('NEXT BLOCK  #' + fmtInt(tip + 1), g.x, g.y - 8 * ts);
-      ctx.font = '600 ' + Math.round(12 * ts) + 'px -apple-system, "Segoe UI", Roboto, sans-serif';
-      ctx.fillStyle = '#dbe3f0';
-      ctx.fillText('~' + fmtInt(p.nTx) + ' tx · median ' + fmtFee(Number(p.medianFee) || 0), g.x, g.y + g.s + 16 * ts);
+      // (the projected tx count / fee are deliberately not shown: players estimate from the last block)
+      ctx.font = '600 ' + Math.round(11 * ts) + 'px -apple-system, "Segoe UI", Roboto, sans-serif';
+      ctx.fillStyle = '#8a97ad';
+      ctx.fillText('↑ highest fees at the top', g.x, g.y + g.s + 16 * ts);
     } else {
       ctx.font = '700 ' + Math.round(11 * ts) + 'px -apple-system, "Segoe UI", Roboto, sans-serif';
       ctx.fillStyle = '#8a97ad';
@@ -477,8 +486,28 @@
 
   const newest = (list) => list.reduce((a, b) => (b.height > a.height ? b : a));
 
+  // Remember what we know about a block (never overwrite a known value with a missing one).
+  function recordBlock(b) {
+    if (!b || typeof b.height !== 'number') return;
+    const old = feed.blocks[b.height] || {};
+    const ex = b.extras || {};
+    feed.blocks[b.height] = {
+      height: b.height,
+      timestamp: Number(b.timestamp) || old.timestamp || 0,
+      tx_count: Number(b.tx_count) || old.tx_count || 0,
+      medianFee: typeof ex.medianFee === 'number' ? ex.medianFee : (old.medianFee != null ? old.medianFee : null),
+      pool: (ex.pool && ex.pool.name) || old.pool || null,
+    };
+    // keep the map small
+    const keys = Object.keys(feed.blocks);
+    if (keys.length > 40) {
+      keys.map(Number).sort((a, c) => a - c).slice(0, keys.length - 30).forEach((k) => { delete feed.blocks[k]; });
+    }
+  }
+
   function noteBlock(b) {
     if (!b || typeof b.height !== 'number') return;
+    recordBlock(b);
     if (feed.tip == null) {
       feed.tip = b.height;
       feed.lastBlockAt = (Number(b.timestamp) || 0) * 1000 || Date.now();
@@ -486,10 +515,22 @@
       return;
     }
     if (b.height > feed.tip) {
+      const prevAt = feed.lastBlockAt;
       feed.tip = b.height;
       feed.lastBlockAt = Date.now();
-      handleNewBlock(b);
+      handleNewBlock(b, prevAt);
     }
+  }
+
+  // The last block's details are the players' reference numbers.
+  function lastBlock() { return feed.tip != null ? feed.blocks[feed.tip] || null : null; }
+
+  // Seconds between the last block and the one before it (miner clocks are approximate, so never negative).
+  function lastGapSeconds() {
+    const a = lastBlock();
+    const p = feed.tip != null ? feed.blocks[feed.tip - 1] : null;
+    if (!a || !p || !a.timestamp || !p.timestamp) return null;
+    return Math.max(0, a.timestamp - p.timestamp);
   }
 
   function setStatus(kind) {
@@ -540,7 +581,10 @@
     lastMsgAt = Date.now();
     let m;
     try { m = JSON.parse(e.data); } catch (err) { return; }
-    if (Array.isArray(m.blocks) && m.blocks.length) noteBlock(newest(m.blocks));
+    if (Array.isArray(m.blocks) && m.blocks.length) {
+      m.blocks.forEach(recordBlock);          // remember all of them (the previous block is the reference)
+      noteBlock(newest(m.blocks));
+    }
     if (m.block) noteBlock(m.block);
     if (Array.isArray(m['mempool-blocks'])) setProjected(m['mempool-blocks']);
     if (Array.isArray(m.transactions)) addRain(m.transactions);
@@ -554,7 +598,10 @@
         getJson('/v1/blocks'), getJson('/v1/fees/mempool-blocks'), getJson('/mempool/recent'),
       ]);
       feed.restOk = true;
-      if (Array.isArray(bl) && bl.length) noteBlock(newest(bl));
+      if (Array.isArray(bl) && bl.length) {
+        bl.forEach(recordBlock);
+        noteBlock(newest(bl));
+      }
       if (Array.isArray(mb)) setProjected(mb);
       if (Array.isArray(rec)) addRain(rec);
       if (!feed.wsOpen) setStatus('poll');
@@ -652,11 +699,21 @@
     $('gFeeVal').textContent = fmtFee(logFeeFromPos(+$('gFee').value));
   }
 
+  // Under each slider: what the LAST block did. Players guess the next block from these numbers.
   function updateHints() {
-    const p = feed.projected[0];
-    if (!p) return;
-    $('projTx').textContent = '~' + fmtInt(p.nTx) + ' transactions';
-    $('projFee').textContent = fmtFee(Number(p.medianFee) || 0);
+    const lb = lastBlock();
+    const gap = lastGapSeconds();
+    const tag = lb ? '#' + fmtInt(lb.height) : 'the last block';
+
+    if (gap == null) {
+      setText('hintTime', 'Counted from the last block (' + tag + ').');
+    } else if (gap < 60) {
+      setText('hintTime', 'Counted from the last block (' + tag + '), which was found in under a minute.');
+    } else {
+      setText('hintTime', 'Counted from the last block (' + tag + '), which was found in ' + fmtMin(Math.round(gap / 6) / 10) + '.');
+    }
+    setText('hintTx', lb && lb.tx_count ? 'Last block: ' + fmtInt(lb.tx_count) + ' transactions' : 'Last block: …');
+    setText('hintFee', lb && lb.medianFee != null ? 'Last block: ' + fmtFee(lb.medianFee) + ' (median)' : 'Last block: …');
   }
 
   function maybeStart() {
@@ -668,13 +725,20 @@
     R.target = (feed.tip || 0) + 1;
     R.guesses = null;
     R.lockedAt = 0;
+    // Remember which block this round is measured from (timing is counted from it, not from "now").
+    const lb = lastBlock();
+    R.base = lb ? { height: lb.height, timestamp: lb.timestamp } : null;
+    R.baseAt = feed.lastBlockAt;
     $('roundNo').textContent = R.roundNo;
     $('targetH').textContent = fmtInt(R.target);
+
+    // Sliders start at the last block's numbers (the projection is no longer used as a default).
     const p = feed.projected[0];
+    const txSeed = lb && lb.tx_count ? lb.tx_count : (p ? Number(p.nTx) : 0) || 4000;
+    const feeSeed = lb && lb.medianFee != null ? lb.medianFee : (p ? Number(p.medianFee) : 0) || 1;
     $('gTime').value = CONFIG.defaultTimeMin;
-    const tx = p ? Math.round((Number(p.nTx) || 4000) / 50) * 50 : 4000;
-    $('gTx').value = clamp(tx, +$('gTx').min, +$('gTx').max);
-    $('gFee').value = posFromFee(p ? Number(p.medianFee) || 1 : 1);
+    $('gTx').value = clamp(Math.round(txSeed / 50) * 50, +$('gTx').min, +$('gTx').max);
+    $('gFee').value = posFromFee(feeSeed);
     updateReadouts();
     updateHints();
     showView('guess');
@@ -694,24 +758,35 @@
     sfx.lock();
   }
 
-  async function handleNewBlock(b) {
+  async function handleNewBlock(b, prevAt) {
     const arrivedAt = Date.now();
     blockFx();
     sfx.block();
+    // Make sure we hold the new block's median fee for the next round's hint (fetched if it came without).
+    const fullP = withExtras(b);
+    fullP.then((full) => { recordBlock(full); updateHints(); });
+
     if (R.state === 'guess') {
       // the block beat the player: no penalty, just restart for the following block
       showNote('⛏️ Block #' + fmtInt(b.height) + ' was found before you locked in — new round for #' + fmtInt(b.height + 1) + '.');
       startRound();
     } else if (R.state === 'wait') {
       R.state = 'grading';
-      const full = await withExtras(b);
-      grade(full, arrivedAt);
+      const full = await fullP;
+      grade(full, arrivedAt, prevAt);
     }
   }
 
-  function grade(b, arrivedAt) {
+  function grade(b, arrivedAt, prevAt) {
     const g = R.guesses;
-    const actualMs = arrivedAt - R.lockedAt;
+    // How long after the PREVIOUS block did this one land? Prefer the blocks' own timestamps (the same
+    // clock the "last block took X min" hint uses); fall back to when we saw them arrive.
+    let actualMs;
+    if (R.base && R.base.timestamp && Number(b.timestamp)) {
+      actualMs = Math.max(0, (Number(b.timestamp) - R.base.timestamp) * 1000);
+    } else {
+      actualMs = Math.max(0, arrivedAt - (R.baseAt || prevAt || R.lockedAt));
+    }
     const actualTx = Number(b.tx_count) || 0;
     const actualFee = b.extras && typeof b.extras.medianFee === 'number' ? b.extras.medianFee : null;
 
@@ -754,7 +829,7 @@
     const pool = b.extras && b.extras.pool && b.extras.pool.name ? b.extras.pool.name : null;
     $('resultTitle').textContent = '⛏️ Block #' + fmtInt(b.height) + ' found!';
     $('resultBlock').textContent = (pool ? 'Mined by ' + pool + ' · ' : '') + fmtInt(actualTx) + ' transactions · ' +
-      fmtDur(actualMs) + ' after you locked in';
+      fmtDur(actualMs) + ' after the previous block';
 
     const max = CONFIG.satsPerGuess * 3;
     const tot = $('roundTotal');
@@ -792,7 +867,8 @@
     if (feed.lastBlockAt) {
       $('sinceBlock').textContent = '⛏️ Last block #' + fmtInt(feed.tip) + ': ' + fmtClock(now - feed.lastBlockAt) + ' ago';
     }
-    if (R.state === 'wait') $('elapsed').textContent = fmtClock(now - R.lockedAt);
+    // while waiting, show how long it's been since the LAST block (the guess is measured from there)
+    if (R.state === 'wait') $('elapsed').textContent = fmtClock(now - (feed.lastBlockAt || R.lockedAt));
     tickCooldown();
   }
 
@@ -838,7 +914,12 @@
   const fsBtn = $('fullscreen');
   const root = document.documentElement;
   const inFrame = window.parent !== window;
-  const fsApi = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  // iPhone/iPad (every iOS browser is WebKit) can pop up "It looks like you are typing while in full
+  // screen" even on pages with no text fields, and it can't be switched off. There we skip the real
+  // Fullscreen API and expand the game to fill the screen instead.
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const fsApi = !isIOS && !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
   let maximized = false;
   const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;
 

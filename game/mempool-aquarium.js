@@ -228,6 +228,7 @@
   let score = 0;
   let best = 0;
   let caught = 0;
+  const counts = { shrimp: 0, fish: 0, shark: 0, whale: 0 };   // animals caught this game, by type
   let combo = 0;
   let lastCatchAt = 0;
   let nextSpawnAt = 0;
@@ -309,6 +310,8 @@
       id: nextId++,
       txid: tx.txid, sats: tx.sats, feeRate, sim: !!tx.sim,
       tier, r, dir,
+      // whales come in two kinds, picked at random: a friendly cartoon whale or a long blue whale
+      variant: tier === 'whale' ? (Math.random() < 0.5 ? 'blue' : 'whale') : null,
       x: dir > 0 ? -r * 2 : W + r * 2,
       y, baseY: y,
       vx: speed * dir,
@@ -335,97 +338,28 @@
     }
   }
 
+  // Draw one creature (shrimp / fish / shark / whale, see aquarium-creatures.js) plus its value label.
   function drawFish(f, time) {
     const r = f.r;
-    const wag = Math.sin(time * 7 + f.phase * 2) * 0.28;
     const isWhale = f.tier === 'whale';
 
-    ctx.save();
-    ctx.translate(f.x, f.y);
-    ctx.scale(f.dir, 1);
-
-    if (isWhale) {
-      ctx.shadowColor = 'rgba(255, 200, 60, 0.85)';
-      ctx.shadowBlur = 24;
-    }
-
-    const sat = isWhale ? 95 : f.tier === 'shark' ? 25 : 80;
-    const lightTop = isWhale ? 62 : 58;
-    const lightBot = isWhale ? 42 : 38;
-    const top = 'hsl(' + f.hue + ',' + sat + '%,' + lightTop + '%)';
-    const bot = 'hsl(' + f.hue + ',' + sat + '%,' + lightBot + '%)';
-    const fin = 'hsl(' + f.hue + ',' + sat + '%,' + (lightBot - 8) + '%)';
-
-    // Tail
-    ctx.save();
-    ctx.translate(-r * 0.82, 0);
-    ctx.rotate(wag);
-    ctx.fillStyle = fin;
-    ctx.beginPath();
-    ctx.moveTo(r * 0.1, 0);
-    ctx.lineTo(-r * 0.62, -r * 0.5);
-    ctx.quadraticCurveTo(-r * 0.4, 0, -r * 0.62, r * 0.5);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-
-    // Dorsal fin
-    const finH = f.tier === 'shark' ? 0.62 : 0.4;
-    ctx.fillStyle = fin;
-    ctx.beginPath();
-    ctx.moveTo(-r * 0.25, -r * 0.5);
-    ctx.quadraticCurveTo(r * 0.05, -r * (0.5 + finH), r * 0.38, -r * 0.5);
-    ctx.closePath();
-    ctx.fill();
-
-    // Body
-    const g = ctx.createLinearGradient(0, -r * 0.6, 0, r * 0.6);
-    g.addColorStop(0, top);
-    g.addColorStop(1, bot);
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.ellipse(0, 0, r, r * 0.58, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-
-    // Belly highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.18)';
-    ctx.beginPath();
-    ctx.ellipse(r * 0.05, r * 0.2, r * 0.7, r * 0.22, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Gill line
-    ctx.strokeStyle = 'rgba(0,0,0,0.22)';
-    ctx.lineWidth = Math.max(1, r * 0.04);
-    ctx.beginPath();
-    ctx.arc(r * 0.32, 0, r * 0.3, Math.PI * 0.62, Math.PI * 1.38);
-    ctx.stroke();
-
-    // Eye
-    const er = Math.max(2.2, r * 0.13);
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(r * 0.56, -r * 0.12, er, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#10202b';
-    ctx.beginPath();
-    ctx.arc(r * 0.6, -r * 0.12, er * 0.52, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.restore();
+    if (window.AquariumCreatures) window.AquariumCreatures.draw(ctx, f, time);
 
     // Label (drawn unmirrored)
     if (r >= 26 * S || isWhale) {
       const fs = Math.round(clamp(r * 0.22, 10, 15));
       ctx.font = '700 ' + fs + 'px -apple-system, "Segoe UI", Roboto, sans-serif';
       ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
+      // whales carry their label underneath (their spout rises above); sharks clear their tall fin
+      const below = isWhale;
+      ctx.textBaseline = below ? 'top' : 'bottom';
+      const ly = below ? f.y + r * 0.82 + 3 : f.y - r * (f.tier === 'shark' ? 0.92 : 0.62) - 3;
       const label = (isWhale ? TIERS.whale.icon + ' ' : '') + fmtValue(f.sats);
       ctx.lineWidth = 3;
       ctx.strokeStyle = 'rgba(2,18,30,0.8)';
-      ctx.strokeText(label, f.x, f.y - r * 0.62 - 3);
+      ctx.strokeText(label, f.x, ly);
       ctx.fillStyle = isWhale ? '#ffe08a' : '#e8f6ff';
-      ctx.fillText(label, f.x, f.y - r * 0.62 - 3);
+      ctx.fillText(label, f.x, ly);
     }
   }
 
@@ -452,6 +386,8 @@
     lastCatchAt = now;
     score += f.sats;
     caught += 1;
+    if (counts[f.tier] !== undefined) counts[f.tier] += 1;
+    bumpChip = f.tier;
     if (score > best) {
       best = score;
       try { localStorage.setItem(CONFIG.storageKey, String(best)); } catch (e) { /* ignore */ }
@@ -477,6 +413,13 @@
   }
 
   /* ================= HUD ================= */
+  // The whale banner and the "caught" card are drawn on the canvas, UNDER the animals, so fish and
+  // whales swim in front of them. The DOM copies (#banner, #catch) stay as visually-hidden text for
+  // screen readers and keyboard users.
+  let bannerState = null;    // { text, start, until }
+  let catchState = null;     // { line1, line2, url }
+  let catchLink = null;      // where the "View" button was last drawn: { x, y, w, h, url }
+
   let bannerTimer = 0;
   function showBanner(text) {
     const el = $('banner');
@@ -484,18 +427,141 @@
     el.hidden = false;
     clearTimeout(bannerTimer);
     bannerTimer = setTimeout(() => { el.hidden = true; }, 3500);
+    const now = performance.now();
+    bannerState = { text, start: now, until: now + 3500 };
   }
+
+  // rounded rectangle path (works without ctx.roundRect)
+  function rr(x, y, w, h, rad) {
+    rad = Math.min(rad, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rad, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rad);
+    ctx.arcTo(x + w, y + h, x, y + h, rad);
+    ctx.arcTo(x, y + h, x, y, rad);
+    ctx.arcTo(x, y, x + w, y, rad);
+    ctx.closePath();
+  }
+
+  function drawBanner() {
+    if (!bannerState) return;
+    const now = performance.now();
+    if (now > bannerState.until) { bannerState = null; return; }
+    const age = now - bannerState.start;
+    const left = bannerState.until - now;
+    const a = clamp(Math.min(age / 220, left / 450), 0, 1);
+    const slide = (1 - clamp(age / 220, 0, 1)) * -14;
+
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.font = '800 ' + (W < 420 ? 14 : 16) + 'px -apple-system, "Segoe UI", Roboto, sans-serif';
+    const tw = ctx.measureText(bannerState.text).width;
+    const w = Math.min(W - 24, tw + 36), h = 34;
+    const x = (W - w) / 2;
+    // Sit below the score boxes when the banner would run behind them (narrow phones).
+    let y = 62;
+    const hudEl = document.querySelector('.hud-tl');
+    if (hudEl) {
+      const hb = hudEl.getBoundingClientRect();
+      if (x < hb.right + 8) y = Math.max(y, hb.bottom + 8);
+    }
+    y += slide;
+    const g = ctx.createLinearGradient(x, y, x + w, y + h);
+    g.addColorStop(0, '#ffd166');
+    g.addColorStop(1, '#f4a300');
+    ctx.shadowColor = 'rgba(255, 190, 40, 0.5)';
+    ctx.shadowBlur = 18;
+    ctx.fillStyle = g;
+    rr(x, y, w, h, 17);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#3a2200';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(bannerState.text, W / 2, y + h / 2 + 1, w - 20);
+    ctx.restore();
+  }
+
+  function drawCatchCard() {
+    catchLink = null;
+    if (!catchState) return;
+    const w = Math.min(W - 24, 440), h = 50;
+    const x = (W - w) / 2, y = H - 64 - h;
+    const linkW = catchState.url ? 76 : 0;
+    const textW = w - 24 - linkW;
+    const FONT = '-apple-system, "Segoe UI", Roboto, sans-serif';
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(2, 18, 30, 0.8)';
+    rr(x, y, w, h, 12);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(160, 220, 255, 0.28)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    let fs = 13;
+    ctx.font = '700 ' + fs + 'px ' + FONT;
+    while (ctx.measureText(catchState.line1).width > textW && fs > 10) { fs--; ctx.font = '700 ' + fs + 'px ' + FONT; }
+    ctx.fillStyle = '#e8f6ff';
+    ctx.fillText(catchState.line1, x + 12, y + 22);
+
+    fs = 12;
+    ctx.font = '500 ' + fs + 'px ' + FONT;
+    while (ctx.measureText(catchState.line2).width > textW && fs > 9) { fs--; ctx.font = '500 ' + fs + 'px ' + FONT; }
+    ctx.fillStyle = 'rgba(232, 246, 255, 0.72)';
+    ctx.fillText(catchState.line2, x + 12, y + 40);
+
+    if (catchState.url) {
+      const bx = x + w - linkW - 6, by = y + 8, bw = linkW, bh = h - 16;
+      ctx.fillStyle = 'rgba(125, 211, 252, 0.16)';
+      rr(bx, by, bw, bh, 10);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(125, 211, 252, 0.55)';
+      ctx.stroke();
+      ctx.fillStyle = '#7dd3fc';
+      ctx.font = '700 13px ' + FONT;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('View ↗', bx + bw / 2, by + bh / 2 + 1);
+      catchLink = { x: bx - 4, y: y, w: bw + 10, h: h, url: catchState.url };
+    }
+    ctx.restore();
+  }
+
+  let bumpChip = null;   // which counter just went up (for the little pop animation)
 
   function updateHud() {
     $('score').textContent = fmtSats(score);
     $('scoreBtc').textContent = fmtBtc(score);
     $('best').textContent = fmtSats(best) + ' · ' + fmtBtc(best);
+
+    for (const tier in counts) {
+      $('cnt-' + tier).textContent = counts[tier];
+      $('chip-' + tier).title = TIERS[tier].name + ' caught: ' + counts[tier];
+    }
+    if (bumpChip) {
+      const chip = $('chip-' + bumpChip);
+      chip.classList.remove('bump');
+      void chip.offsetWidth;          // restart the animation
+      chip.classList.add('bump');
+      bumpChip = null;
+    }
     const c = $('combo');
     if (combo > 1) { c.textContent = '🔥 ' + combo + ' streak'; c.hidden = false; c.style.animation = 'none'; void c.offsetWidth; c.style.animation = ''; }
     else c.hidden = true;
   }
 
   function showCatch(f) {
+    // canvas copy (drawn under the animals)
+    catchState = {
+      line1: TIERS[f.tier].icon + ' ' + TIERS[f.tier].name + ' caught: ' + fmtValue(f.sats),
+      line2: f.feeRate.toFixed(1) + ' sat/vB · ' + (f.sim ? 'simulated' : shortTxid(f.txid)),
+      url: !f.sim && /^[0-9a-f]{64}$/i.test(f.txid) ? 'https://mempool.space/tx/' + f.txid : null,
+    };
+
+    // screen-reader copy
     const el = $('catch');
     el.textContent = '';
     const info = document.createElement('span');
@@ -520,8 +586,8 @@
     const rows = [
       ['shrimp', 'under ' + th(CONFIG.fishSats), 'small and common'],
       ['fish', th(CONFIG.fishSats) + ' to ' + th(CONFIG.sharkSats), 'everyday payments'],
-      ['shark', th(CONFIG.sharkSats) + ' to ' + th(CONFIG.whaleSats), 'big movers, with a bigger fin'],
-      ['whale', th(CONFIG.whaleSats) + ' and up', 'rare, golden and glowing'],
+      ['shark', th(CONFIG.sharkSats) + ' to ' + th(CONFIG.whaleSats), 'big movers, fin and all'],
+      ['whale', th(CONFIG.whaleSats) + ' and up', 'rare! a whale or a blue whale, glowing gold'],
     ];
     $('helpTiers').innerHTML = rows.map((r) =>
       '<li>' + TIERS[r[0]].icon + ' <strong>' + TIERS[r[0]].name + '</strong> &mdash; ' + r[1] + ' (' + r[2] + ')</li>'
@@ -690,6 +756,10 @@
       ctx.fill();
     }
 
+    // Banner + catch card sit under the animals, so fish swim in front of them
+    drawBanner();
+    drawCatchCard();
+
     // Fish: small first so big ones overlap them
     const ordered = fish.slice().sort((a, b) => a.r - b.r);
     for (const f of ordered) drawFish(f, time);
@@ -748,9 +818,17 @@
     e.preventDefault();
     sfx.unlock();   // first tap unlocks audio (browser autoplay rules)
     const rect = canvas.getBoundingClientRect();
-    const f = pointFish(e.clientX - rect.left, e.clientY - rect.top);
-    if (f) catchFish(f, performance.now());
-    else sfx.miss();
+    const px = e.clientX - rect.left, py = e.clientY - rect.top;
+    const f = pointFish(px, py);
+    if (f) {
+      catchFish(f, performance.now());   // an animal in front always wins over the card behind it
+    } else if (catchLink && catchState && catchState.url &&
+               px >= catchLink.x && px <= catchLink.x + catchLink.w &&
+               py >= catchLink.y && py <= catchLink.y + catchLink.h) {
+      window.open(catchState.url, '_blank', 'noopener,noreferrer');
+    } else {
+      sfx.miss();
+    }
   });
 
   const soundBtn = $('sound');
@@ -784,7 +862,12 @@
   const fsBtn = $('fullscreen');
   const root = document.documentElement;
   const inFrame = window.parent !== window;
-  const fsApi = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  // iPhone/iPad (every iOS browser is WebKit) can pop up "It looks like you are typing while in full
+  // screen" even on pages with no text fields, and it can't be switched off. There we skip the real
+  // Fullscreen API and expand the game to fill the screen instead.
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const fsApi = !isIOS && !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
   let maximized = false;
 
   const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;

@@ -17,6 +17,12 @@
       <span class="sub" id="scoreBtc">0.00000000 BTC</span>
     </div>
     <div class="pill best"><span class="lbl">Best</span><span class="sub" id="best">0 sats</span></div>
+    <div class="pill counts" role="group" aria-label="Animals caught this game">
+      <span class="chip" id="chip-shrimp" title="Shrimp caught"><i aria-hidden="true">&#129424;</i><b id="cnt-shrimp">0</b></span>
+      <span class="chip" id="chip-fish" title="Fish caught"><i aria-hidden="true">&#128031;</i><b id="cnt-fish">0</b></span>
+      <span class="chip" id="chip-shark" title="Sharks caught"><i aria-hidden="true">&#129416;</i><b id="cnt-shark">0</b></span>
+      <span class="chip" id="chip-whale" title="Whales caught"><i aria-hidden="true">&#128011;</i><b id="cnt-whale">0</b></span>
+    </div>
     <div id="combo" class="combo" hidden>x2</div>
   </div>
 
@@ -51,9 +57,11 @@
         <strong>BTC</strong> (1 BTC = 100,000,000 sats). One whale can outweigh hundreds of shrimp.</li>
         <li><strong>Streaks:</strong> catch fish in quick succession (about 2 seconds apart) and the catch sounds
         climb in pitch. It's just for fun &mdash; it doesn't change your score.</li>
+        <li>Under your score, the little counters show how many <strong>shrimp, fish, sharks and whales</strong> you've
+        caught this game.</li>
         <li>After a catch, tap <strong>View &#8599;</strong> to open that exact transaction on mempool.space.</li>
-        <li>Tap the <strong>corner arrows</strong> button for <strong>full screen</strong> (on iPhone it expands the game to
-        fill the screen instead).</li>
+        <li>Tap the <strong>corner arrows</strong> button for <strong>full screen</strong> (on iPhone and iPad it expands the game to
+        fill the screen instead, because Apple's own full-screen mode keeps interrupting with a "typing" warning).</li>
       </ul>
 
       <h3>Fish types</h3>
@@ -101,6 +109,7 @@
     <div class="status"><i id="dot" class="dot"></i><span id="statusText">Connecting&hellip;</span></div>
   </div>
 
+  <script src="aquarium-creatures.js"></script>
   <script src="mempool-aquarium.js"></script>
   <script src="shared/share.js"></script>
 </body>

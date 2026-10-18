@@ -491,7 +491,12 @@
   const fsBtn = $('fullscreen');
   const root = document.documentElement;
   const inFrame = window.parent !== window;
-  const fsApi = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  // iPhone/iPad (every iOS browser is WebKit) can pop up "It looks like you are typing while in full
+  // screen" even on pages with no text fields, and it can't be switched off. There we skip the real
+  // Fullscreen API and expand the game to fill the screen instead.
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const fsApi = !isIOS && !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
   let maximized = false;
   const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;
 

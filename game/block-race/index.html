@@ -33,16 +33,17 @@
         <div class="guess">
           <label for="gTime"><span>&#9201;&#65039; Lands in</span> <b id="gTimeVal">10 min</b></label>
           <input type="range" id="gTime" min="0.5" max="30" step="0.5" value="10">
+          <small class="hint" id="hintTime">&hellip;</small>
         </div>
         <div class="guess">
           <label for="gTx"><span>&#128230; Transactions</span> <b id="gTxVal">4,000</b></label>
           <input type="range" id="gTx" min="500" max="12000" step="50" value="4000">
-          <small class="hint">Projected: <span id="projTx">&hellip;</span></small>
+          <small class="hint" id="hintTx">&hellip;</small>
         </div>
         <div class="guess">
           <label for="gFee"><span>&#128184; Median fee</span> <b id="gFeeVal">1.00 sat/vB</b></label>
           <input type="range" id="gFee" min="0" max="1000" step="1" value="500">
-          <small class="hint">Projected: <span id="projFee">&hellip;</span></small>
+          <small class="hint" id="hintFee">&hellip;</small>
         </div>
 
         <button id="lockBtn" class="primary" type="button">&#128274; Lock in my guesses</button>
@@ -51,11 +52,11 @@
       <div id="viewWait" hidden>
         <h2>&#128274; Locked in &mdash; waiting for block #<span id="targetH2">0</span></h2>
         <ul class="locked">
-          <li>&#9201;&#65039; Lands in <b id="lkTime"></b></li>
+          <li>&#9201;&#65039; Lands <b id="lkTime"></b> after the last block</li>
           <li>&#128230; Transactions <b id="lkTx"></b></li>
           <li>&#128184; Median fee <b id="lkFee"></b></li>
         </ul>
-        <p class="waiting">Waiting&hellip; <b id="elapsed">00:00</b> since you locked in <span class="dots"><i></i><i></i><i></i></span></p>
+        <p class="waiting">Waiting&hellip; <b id="elapsed">00:00</b> since the last block <span class="dots"><i></i><i></i><i></i></span></p>
         <p class="muted">Blocks arrive at random &mdash; sometimes in a minute, sometimes in half an hour. Watch the squares!</p>
       </div>
 
@@ -105,7 +106,7 @@
 
       <h3>What you're looking at</h3>
       <ul>
-        <li>The <strong>big square</strong> is the <em>next block</em>, as projected live by mempool.space. Each little
+        <li>The <strong>big square</strong> is the <em>next block</em>, filling up live from mempool.space. Each little
         cell is a slice of the block's space, coloured by fee rate: <span class="c-low">blue</span> = cheap,
         <span class="c-mid">green / yellow</span> = more, <span class="c-high">orange / red</span> = paying a premium.
         The most expensive transactions sit at the top.</li>
@@ -116,8 +117,11 @@
 
       <h3>How to play</h3>
       <ul>
-        <li>Set your <strong>three guesses</strong>: when the block lands (counted from the moment you lock in), how many
-        transactions it holds, and its median fee rate (the typical fee its transactions pay).</li>
+        <li>Set your <strong>three guesses</strong>: how long after the <em>last block</em> the next one lands (counted from
+        that block, not from now), how many transactions it holds, and its median fee rate (the typical fee its
+        transactions pay).</li>
+        <li>Under each slider you'll see <strong>what the last block did</strong>. Use it as your starting point &mdash; the
+        sliders begin there too.</li>
         <li>Press <strong>Lock in</strong>, then wait for the real block. The moment it's found, you're scored.</li>
         <li>If a block lands <em>before</em> you lock in, the round just restarts for the next block.</li>
       </ul>
@@ -134,8 +138,9 @@
 
       <h3>Good to know</h3>
       <ul>
-        <li>The <strong>projection is a hint, not a promise.</strong> Miners choose differently and the mempool keeps
-        changing, so real blocks often differ. Time is pure luck: waiting longer never makes a block "due".</li>
+        <li>The <strong>last block is only a hint, not a promise.</strong> Blocks vary a lot from one to the next, and
+        timing is pure luck: waiting longer never makes a block "due". (Miners set their own clocks, so a block's
+        time can be a little off.)</li>
         <li>The <strong>faucet cooldown</strong> timer is shown under the squares. It's about one block long, but the game
         doesn't stop when it ends &mdash; it keeps going until the block is found. When the faucet is ready, go claim your
         sats!</li>
