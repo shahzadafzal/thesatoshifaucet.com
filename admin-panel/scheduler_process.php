@@ -820,7 +820,7 @@ for ($i = 0; $i < $BATCH; $i++) {
                 ':id'     => $id,
             ]);
 
-        echo "Row #{$id} READY TO PAY: stored BOLT11 invoice for {$REWARD_SATS} sats\n";
+        echo "Row #{$id} READY TO PAY: stored BOLT11 invoice for {$sats_requested} sats\n";
 
         // ============================================================
         // 📧 SEND EMAIL NOTIFICATION - Ready to Pay
@@ -833,7 +833,7 @@ for ($i = 0; $i < $BATCH; $i++) {
             $EMAIL_ADMIN,
             $lnurl,
             $domain,
-            $REWARD_SATS,
+            $sats_requested,   // the row's own amount (Block Race wins differ from $REWARD_SATS)
             'ready_to_pay',
             null,
             null,

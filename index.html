@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<link rel="stylesheet" href="assets/style.css?v=202610062237" />
+<link rel="stylesheet" href="assets/style.css?v=202611051200" />
 
 <head>
   <meta charset="UTF-8" />
@@ -88,10 +88,37 @@ earn bitcoin free
             this site brings back the classic idea of earning free BTC with modern technology.
           </p>
 
+          <!-- Two ways to get sats: claim from the faucet, or win them in a game (Block Race for now).
+               Numbers are refreshed from block-race.php?action=info; the "win" card hides itself if paid play is switched off. -->
+          <div class="ways" style="display: none;" aria-label="Two ways to get sats">
+            <div class="ways-title">Two ways to get sats</div>
+            <div class="ways-row">
+              <a class="way way-claim" href="#faucet-form">
+                <span class="way-icon">⚡</span>
+                <span class="way-text">
+                  <strong>Claim free sats</strong>
+                  <small>Complete the CAPTCHA, enter your LNURL (or scan your QR code) and press <b>Get Some!</b></small>
+                </span>
+                <span class="way-cta">Claim below ↓</span>
+              </a>
+              <span class="ways-or" aria-hidden="true">or</span>
+              <button type="button" class="way way-earn" id="way-earn"
+                      data-game-url="game/block-race/" data-game-title="Block Race" data-game-hash="Block-Race">
+                <span class="way-badge">🏆 NEW</span>
+                <span class="way-icon">⛏️</span>
+                <span class="way-text">
+                  <strong>Win up to <span class="br-max">100</span> sats</strong>
+                  <small>Play <b>Block Race</b>: guess the next Bitcoin block. Your accuracy becomes sats &mdash; <span class="br-spots">10</span> winners every block!</small>
+                </span>
+                <span class="way-cta">Play &amp; win ▶</span>
+              </button>
+            </div>
+          </div>
+
           <p class="faucet-panel-text">
-            Just complete the CAPTCHA, enter your LNURL (or scan your QR code),
-            and press <strong>Get Some!</strong>
-          </p>
+  Just complete the CAPTCHA, enter your LNURL (or scan your QR code),
+  and press <strong>Get Some!</strong>
+</p>
 
           <form id="faucet-form" autocomplete="off">
             <div class="captcha-wrap">
@@ -165,18 +192,19 @@ earn bitcoin free
             </p>
 
             <!-- Play while you wait. To add a game: set data-game-url + data-game-title + data-game-hash (the #link name, e.g. #Block-Race) and drop the "soon" class/disabled. -->
-            <div class="game-tiles" aria-label="Play while you wait">
-              <div class="game-tiles-title">🎮 Play while you wait</div>
+            <div class="game-tiles" aria-label="Play while you wait, or play to win sats">
+              <div class="game-tiles-title">🎮 Play while you wait &mdash; <span class="game-tiles-win">or play to win sats!</span></div>
               <div class="game-tiles-row">
                 <button type="button" class="game-tile" data-game-url="game/mempool-aquarium" data-game-title="Mempool Aquarium" data-game-hash="Mempool_Aquarium">
                   <span class="game-tile-icon">🐋</span>
                   <strong>Mempool Aquarium</strong>
                   <small>Catch live Bitcoin transactions</small>
                 </button>
-                <button type="button" class="game-tile" data-game-url="game/block-race/" data-game-title="Block Race" data-game-hash="Block-Race">
+                <button type="button" class="game-tile game-tile-earn" data-game-url="game/block-race/" data-game-title="Block Race" data-game-hash="Block-Race">
+                  <span class="game-tile-badge">🏆 Win sats</span>
                   <span class="game-tile-icon">⛏️</span>
                   <strong>Block Race</strong>
-                  <small>Guess the next Bitcoin block</small>
+                  <small>Guess the next block &middot; win up to <span class="br-max">100</span> sats</small>
                 </button>
                 <button type="button" class="game-tile" data-game-url="game/pow-miner/" data-game-title="PoW Mini Miner" data-game-hash="PoW-Miner">
                   <span class="game-tile-icon">🔢</span>
@@ -697,7 +725,8 @@ earn bitcoin free
 
           const icon = document.createElement("span");
           icon.className = "recent-invoice-icon";
-          icon.textContent = "⚡";
+          icon.textContent = item.source === "block-race" ? "⛏️" : "⚡";
+          if (item.source === "block-race") icon.title = "Won in the Block Race game";
 
           const text = document.createElement("span");
           text.textContent = item.invoiceShort || "ln…";
@@ -792,7 +821,30 @@ earn bitcoin free
   </script>
 
   <script src="scripts/faucet.js" async defer></script>
-  <script>      
+  <script>
+    // "Two ways to get sats" banner: smooth-scroll to the claim form, and show Block Race's live
+    // max reward / spots. If paid play is switched off, the "win" card and badges hide themselves.
+    (function () {
+      var claim = document.querySelector('.way-claim');
+      if (claim) claim.addEventListener('click', function (e) {
+        e.preventDefault();
+        var target = document.querySelector('.captcha-wrap') || document.getElementById('faucet-form');
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      fetch('block-race.php?action=info', { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          if (j && j.ok) {
+            document.querySelectorAll('.br-max').forEach(function (el) { el.textContent = j.maxSats; });
+            document.querySelectorAll('.br-spots').forEach(function (el) { el.textContent = j.spotsTotal; });
+          } else if (j && j.error === 'disabled') {
+            document.body.classList.add('br-paid-off');
+          }
+        })
+        .catch(function () { /* keep the default numbers */ });
+    })();
+  </script>
+  <script>
     // "Play while you wait" game popup. Any element with data-game-url opens that game in the iframe.
     // (The archived FIFA Penalty game still lives in game/penalty-shootout — re-add a tile to bring it back.)
     (function () {

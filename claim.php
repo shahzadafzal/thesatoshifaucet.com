@@ -178,6 +178,7 @@ function get_global_cooldown_remaining_seconds(PDO $pdo): int {
             TIMESTAMPDIFF(SECOND, created_at, NOW()) AS elapsed_seconds
         FROM faucet_claims
         WHERE status IN ('paid', 'processing', 'pending')
+        AND claim_source <> 'block-race'   -- Block Race wins have their own limits and don't hold up the faucet
         ORDER BY created_at DESC
         LIMIT 1
     ");
@@ -408,7 +409,8 @@ try {
     // The limit is configurable via $MAX_PROCESSING_CLAIMS in config.local.php.
     $limit = isset($MAX_PROCESSING_CLAIMS) ? (int)$MAX_PROCESSING_CLAIMS : 50;
     try {
-        $cntStmt = $pdo->prepare("SELECT COUNT(*) AS c FROM faucet_claims WHERE status = 'processing' OR status='pending'");
+        // Block Race wins are capped per block on their own, so they don't fill up the normal faucet's queue.
+        $cntStmt = $pdo->prepare("SELECT COUNT(*) AS c FROM faucet_claims WHERE (status = 'processing' OR status='pending') AND claim_source <> 'block-race'");
         $cntStmt->execute();
         $cntRow = $cntStmt->fetch();
         $processingCount = $cntRow ? (int)$cntRow['c'] : 0;
@@ -456,11 +458,13 @@ try {
     }
 
     // check if this invoice OR IP already has a record
+    // (Block Race wins don't count: playing the game never stops anyone from claiming here.)
     $check = $pdo->prepare("
         SELECT invoice, ip_address, status, sats_sent, created_at
         FROM faucet_claims
         WHERE created_at >= (NOW() - INTERVAL 7 DAY)
         AND Status IN ('paid', 'processing', 'pending')
+        AND claim_source <> 'block-race'
         AND (
                 invoice = :inv
                 OR ip_address = :ip

@@ -78,7 +78,7 @@ $lastUpdated = $lastUpdatedRow && $lastUpdatedRow['last_updated']
 // --- Recent transactions (anonymised) ---
 $limit = 50;
 $recentStmt = $pdo->prepare("
-    SELECT id, invoice, sats_requested, sats_sent, status, tx_reference, created_at, updated_at, reason, receiver_domain
+    SELECT id, invoice, sats_requested, sats_sent, status, tx_reference, created_at, updated_at, reason, receiver_domain, claim_source
     FROM faucet_claims
     ORDER BY created_at DESC
     LIMIT :lim
@@ -543,7 +543,11 @@ lightning faucet status
             <tr>
               <td><?php echo (int)$c['id']; ?></td>
               <td class="invoice-cell">
+                <?php if (($c['claim_source'] ?? '') === 'block-race'): ?>
+                <span class="recent-invoice-icon" title="Won in the Block Race game">⛏️</span>
+                <?php else: ?>
                 <span class="recent-invoice-icon">⚡</span>
+                <?php endif; ?>
                 <span><?php echo short_invoice($c['invoice']); ?></span>
                 <span class="tiny tiny-reason">
                     🌐<?php echo htmlspecialchars($c['receiver_domain'] ?? '', ENT_QUOTES, 'UTF-8'); ?>

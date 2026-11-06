@@ -147,11 +147,17 @@ if (!$isLoggedIn) {
           font-size: 0.85rem;
           margin-bottom: 8px;
         }
+        .login-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .home-link { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 6px; background: #f0f0f0; border: 1px solid #ddd; font-size: 1.1rem; text-decoration: none; }
+        .home-link:hover { background: #e2e2e2; }
       </style>
     </head>
     <body>
       <div class="login-card">
-        <h1>Faucet Admin</h1>
+        <div class="login-head">
+          <h1>Faucet Admin</h1>
+          <a href="../" class="home-link" target="_blank" rel="noopener" title="Open the faucet home page in a new tab" aria-label="Open the faucet home page in a new tab">&#127968;</a>
+        </div>
         <div class="subtitle">Enter your secret admin password.</div>
         <?php if ($loginError): ?>
           <div class="error"><?php echo htmlspecialchars($loginError, ENT_QUOTES, 'UTF-8'); ?></div>
@@ -645,6 +651,23 @@ if ($row) {
       margin: 0;
     }
 
+    .home-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 4px;
+      background: #fff;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+      text-decoration: none;
+    }
+
+    .home-link:hover {
+      background: #eee;
+    }
+
     .logout-form button {
       border: none;
       background: #666;
@@ -1096,6 +1119,7 @@ if ($row) {
         <div class="subtitle">Manage transaction statuses, sats_sent, and invoices.</div>
       </div>
       <div class="header-actions">
+        <a href="../" class="home-link" target="_blank" rel="noopener" title="Open the faucet home page in a new tab" aria-label="Open the faucet home page in a new tab">&#127968;</a>
         <form method="post" class="logout-form">
           <button type="submit" name="logout" value="1">Logout</button>
         </form>
@@ -1168,7 +1192,7 @@ if ($row) {
                        value="<?php echo $st; ?>"
                        class="filter-checkbox"
                        <?php if (in_array($st, $filterStatuses, true)) echo 'checked'; ?> />
-                <?php echo ucfirst($st); ?>
+                <?php echo $st === 'pending' ? 'Pending (Queued)' : ucfirst($st); /* the public status page calls 'pending' "Queued" */ ?>
               </label>
             <?php endforeach; ?>
           </div>
@@ -1323,6 +1347,10 @@ if ($row) {
 
                 <?php if ($c['claim_source'] == "paste") {?>
                 <span title="Copy Paste">✍</span>
+                <?php } ?>
+
+                <?php if ($c['claim_source'] == "block-race") {?>
+                <span title="Block Race game win">⛏️</span>
                 <?php } ?>
 
                 <span><?php echo htmlspecialchars($c['ip_address'], ENT_QUOTES, 'UTF-8'); ?></span>

@@ -1,0 +1,7 @@
+# admin-panel/.htaccess
+# No folder listing, and never serve logs, backups or dumps from this folder.
+Options -Indexes
+
+<FilesMatch "(\.(log|bak|old|orig|save|swp|txt|sql|zip|tar|gz)|~)$">
+  Require all denied
+</FilesMatch>

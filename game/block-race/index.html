@@ -22,6 +22,7 @@
 
     <section class="panel" id="panel" aria-live="polite">
       <div id="note" class="note" hidden></div>
+      <div id="tickets" class="tickets"></div>
 
       <div id="viewLoading">
         <p class="muted center">Connecting to mempool.space&hellip;</p>
@@ -44,6 +45,20 @@
           <label for="gFee"><span>&#128184; Median fee</span> <b id="gFeeVal">1.00 sat/vB</b></label>
           <input type="range" id="gFee" min="0" max="1000" step="1" value="500">
           <small class="hint" id="hintFee">&hellip;</small>
+        </div>
+
+        <div class="paid" id="paidBox" hidden>
+          <label class="paid-toggle">
+            <input type="checkbox" id="paidOn">
+            <span>&#127903;&#65039; <b>Play for real sats</b> <span class="paid-spots" id="paidSpots"></span></span>
+          </label>
+          <p class="paid-closed" id="paidClosed" hidden></p>
+          <div id="paidFields" hidden>
+            <input type="text" id="lnurlIn" class="lnurl-in" placeholder="lnurl1&hellip; (optional &mdash; you can add it later)"
+                   autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text">
+            <div id="captchaBox" class="captcha-box"></div>
+            <small class="hint" id="paidHint">Your score becomes sats: 1% = 1 sat.</small>
+          </div>
         </div>
 
         <button id="lockBtn" class="primary" type="button">&#128274; Lock in my guesses</button>
@@ -132,8 +147,19 @@
         worth up to <strong id="helpMaxRound">3,000 sats</strong>.</li>
         <li>Accuracy is shown in plain English, e.g. <em>"you said 4,200, actual 4,581 &rarr; 92% accurate"</em>.
         Being off by a factor of 2 on the fee scores 50%; being 4&times; off scores 0.</li>
-        <li>Your running total and your best round are shown top-left. <strong>It's play money</strong> &mdash; no real sats
-        are paid out, and nothing is sent to our server.</li>
+        <li>Your running total and your best round are shown top-left. <strong>That's play money</strong>.</li>
+      </ul>
+
+      <h3>&#127903;&#65039; Play for real sats</h3>
+      <ul>
+        <li>Tick <strong>Play for real sats</strong> before you lock in. Your three accuracy scores are averaged and paid as
+        sats: <em>56% + 30% + 89% &rarr; 58% = 58 sats</em> (1% = 1 sat, up to <strong id="helpRealMax">100 sats</strong>).</li>
+        <li>Only the <strong>first <span id="helpSpots">10</span> players</strong> for each block get a paid spot, and paid
+        entries close <strong><span id="helpWindow">8</span> minutes after the last block</strong> &mdash; so lock in early.</li>
+        <li>Add your <strong>LNURL</strong> when you lock in, or any time later &mdash; even after the block is found. Our server
+        checks your guesses against the real block and queues your sats the same way as a normal faucet claim.</li>
+        <li>Playing for sats doesn't affect the faucet: you can still claim there as usual. Don't want sats? Leave it unticked
+        and just play.</li>
       </ul>
 
       <h3>Good to know</h3>
@@ -144,8 +170,8 @@
         <li>The <strong>faucet cooldown</strong> timer is shown under the squares. It's about one block long, but the game
         doesn't stop when it ends &mdash; it keeps going until the block is found. When the faucet is ready, go claim your
         sats!</li>
-        <li>All data comes straight to your browser from <strong>mempool.space</strong>, so nothing here loads our server
-        (apart from one quick cooldown check).</li>
+        <li>All live data comes straight to your browser from <strong>mempool.space</strong>. Our server is only asked about
+        the faucet cooldown and, if you play for sats, your entry.</li>
       </ul>
 
       <h3>Share it</h3>

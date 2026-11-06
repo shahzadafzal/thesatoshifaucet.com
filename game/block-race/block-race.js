@@ -3,7 +3,11 @@
  * Predict what the next Bitcoin block will look like: when it lands, how many transactions it
  * holds and its median fee rate. Everything is streamed live from mempool.space straight to the
  * visitor's browser (WebSocket, with a REST fallback), so our server carries no load apart from
- * one tiny faucet-cooldown check. Scoring is play money, shown in sats: nothing is paid out.
+ * one tiny faucet-cooldown check. Scoring is play money, shown in sats.
+ *
+ * Optional "Play for real sats": the guesses are also sent to ../../block-race.php at lock-in. The
+ * server grades them against the real block itself (the score shown here is never trusted) and turns
+ * the score into a normal faucet claim (1% = 1 sat). See block-race-lib.php.
  */
 (() => {
   'use strict';
@@ -18,6 +22,13 @@
     wsUrl: 'wss://mempool.space/api/v1/ws',
     apiBase: 'https://mempool.space/api',
     cooldownUrl: '../../claim.php?cooldown_status=1',   // game lives in /game/block-race/
+    captchaConfigUrl: '../../claim.php?captcha_config=1',
+    apiUrl: '../../block-race.php',                     // play-for-sats entries
+    infoRefreshMs: 30000,            // re-check paid spots this often while guessing
+    ticketPollMs: 5000,              // check a paid entry's result this often once its block is found
+    claimPollMs: 60000,              // ...and a queued claim's payout status this often
+    maxTickets: 5,
+    ticketsKey: 'satoshiFaucet.blockRace.tickets',
     restPollMs: 8000,                // fallback polling while the WebSocket is down
     wsRetryMinMs: 2000,
     wsRetryMaxMs: 30000,
@@ -672,6 +683,266 @@
     }
   }
 
+  /* ================= Play for real sats ================= */
+  // `paid.info` is the server's view of the current block (spots left, when paid entries close).
+  // Each paid entry is a "ticket" {token, target, entry, nextPoll} kept in localStorage so a reload doesn't lose it.
+  const paid = { info: null, infoAt: 0, closesAt: 0, loading: false, captcha: null, tickets: [] };
+
+  async function api(action, data) {
+    try {
+      let res;
+      if (!data) {
+        res = await fetch(CONFIG.apiUrl + '?action=' + action, { cache: 'no-store' });
+      } else {
+        const fd = new FormData();
+        fd.append('action', action);
+        for (const k of Object.keys(data)) if (data[k] != null) fd.append(k, data[k]);
+        res = await fetch(CONFIG.apiUrl, { method: 'POST', body: fd, cache: 'no-store' });
+      }
+      return await res.json();
+    } catch (e) {
+      return { ok: false, error: 'network', message: "Couldn't reach the faucet server. Please try again." };
+    }
+  }
+
+  async function loadInfo() {
+    if (paid.loading) return;
+    paid.loading = true;
+    const j = await api('info');
+    paid.loading = false;
+    paid.infoAt = Date.now();
+    // A failed refresh keeps the last good answer, so the box doesn't flicker away mid-captcha.
+    const keepOld = (!j || !j.ok) && j && j.error !== 'disabled' && paid.info && paid.info.ok;
+    paid.infoErr = !!keepOld;
+    if (!keepOld) paid.info = j;
+    if (j && j.ok) {
+      paid.closesAt = Date.now() + j.closesIn * 1000;
+      setText('helpRealMax', fmtSats(j.maxSats));
+      setText('helpSpots', String(j.spotsTotal));
+      setText('helpWindow', String(Math.round(j.lockWindow / 60)));
+    }
+    renderPaid();
+  }
+
+  // The "Play for real sats" box. Once shown it stays put: when paid entries are closed it is
+  // disabled (greyed, with the reason) instead of hidden, so nothing jumps while someone solves the captcha.
+  function renderPaid() {
+    const box = $('paidBox');
+    const info = paid.info;
+    // hidden only before the first answer, when the feature is switched off, or outside the guess view
+    if (!info || (!info.ok && info.error === 'disabled') || R.state !== 'guess') { box.hidden = true; return; }
+    box.hidden = false;
+
+    const now = Date.now();
+    const secsLeft = Math.max(0, Math.round((paid.closesAt - now) / 1000));
+    const entered = paid.tickets.some((t) => t.target === R.target);
+    let closed = '';
+    if (!info.ok) closed = "Can't reach the faucet server right now — play for fun, we'll keep trying.";
+    else if (info.target !== R.target) closed = 'Checking the latest block…';
+    else if (entered) closed = "✅ You're already entered for sats on this block.";
+    else if (info.spotsLeft <= 0) closed = 'All ' + info.spotsTotal + ' paid spots for block #' + fmtInt(R.target) + ' are taken — play for fun and be quicker next block!';
+    else if (secsLeft <= 0) closed = 'Paid entries for block #' + fmtInt(R.target) + ' closed ' + Math.round(info.lockWindow / 60) + ' min after the last block — play for fun and try again next block!';
+
+    const toggle = $('paidOn');
+    toggle.disabled = !!closed;
+    box.classList.toggle('is-closed', !!closed);
+    $('lnurlIn').disabled = !!closed;
+    // keep the tick and the fields (LNURL, captcha) on screen; they come back to life when entries reopen
+    $('paidFields').hidden = !toggle.checked;
+    $('paidClosed').hidden = !closed;
+    $('paidClosed').textContent = closed;
+    $('paidSpots').textContent = !info.ok ? '' : closed && !entered && info.target === R.target
+      ? (info.spotsLeft <= 0 ? 'No spots left' : 'Closed')
+      : closed ? '' : info.spotsLeft + ' of ' + info.spotsTotal + ' spots left · closes in ' + fmtClock(secsLeft * 1000);
+    if (info.ok) setText('paidHint', 'Your score becomes sats: 1% = 1 sat, up to ' + fmtSats(info.maxSats) + '. The LNURL can be added later, even after the block is found.');
+  }
+
+  // hCaptcha (or reCAPTCHA, whichever the faucet uses), loaded only when someone ticks "Play for real sats".
+  function ensureCaptcha() {
+    if (paid.captcha) return;
+    paid.captcha = { api: null, id: null, provider: 'hcaptcha' };
+    fetch(CONFIG.captchaConfigUrl, { cache: 'no-store' }).then((r) => r.json()).then((cfg) => {
+      const google = cfg.provider === 'google';
+      paid.captcha.provider = google ? 'google' : 'hcaptcha';
+      window.blockRaceCaptchaReady = () => {
+        const capi = google ? window.grecaptcha : window.hcaptcha;
+        paid.captcha.api = capi;
+        paid.captcha.id = capi.render('captchaBox', {
+          sitekey: cfg.siteKey,
+          theme: 'dark',
+          size: $('captchaBox').clientWidth && $('captchaBox').clientWidth < 300 ? 'compact' : 'normal',
+        });
+      };
+      const s = document.createElement('script');
+      s.src = google
+        ? 'https://www.google.com/recaptcha/api.js?render=explicit&onload=blockRaceCaptchaReady'
+        : 'https://js.hcaptcha.com/1/api.js?render=explicit&onload=blockRaceCaptchaReady';
+      s.async = true;
+      s.onerror = () => { paid.captcha = null; showNote("The CAPTCHA couldn't load. Check your connection and tick the box again."); };
+      document.head.appendChild(s);
+    }).catch(() => { paid.captcha = null; });
+  }
+
+  function captchaToken() {
+    const c = paid.captcha;
+    if (!c || !c.api || c.id == null) return '';
+    try { return c.api.getResponse(c.id) || ''; } catch (e) { return ''; }
+  }
+  function resetCaptcha() {
+    const c = paid.captcha;
+    if (c && c.api && c.id != null) { try { c.api.reset(c.id); } catch (e) { /* ignore */ } }
+  }
+
+  /* ---- tickets (paid entries) ---- */
+  function saveTickets() {
+    lsSet(CONFIG.ticketsKey, JSON.stringify(paid.tickets.map((t) => ({ token: t.token, target: t.target, entry: t.entry }))));
+  }
+  function loadTickets() {
+    try {
+      const arr = JSON.parse(lsGet(CONFIG.ticketsKey) || '[]');
+      if (Array.isArray(arr)) {
+        paid.tickets = arr.filter((t) => t && /^[0-9a-f]{32}$/.test(t.token)).map((t) => ({ ...t, nextPoll: 0 }));
+      }
+    } catch (e) { paid.tickets = []; }
+  }
+  function addTicket(t) {
+    paid.tickets.unshift({ ...t, nextPoll: 0 });
+    paid.tickets = paid.tickets.slice(0, CONFIG.maxTickets);
+    saveTickets();
+    renderTickets();
+  }
+
+  const isFinal = (e) => e && (e.status === 'no_reward' || e.status === 'expired' || e.status === 'failed' ||
+    (e.status === 'claimed' && (e.claimStatus === 'paid' || e.claimStatus === 'failed' || e.claimStatus === 'blocked')));
+
+  // When should this ticket be asked about next? (0 = not at all)
+  function pollDelay(t) {
+    const e = t.entry;
+    if (!e) return CONFIG.ticketPollMs;   // nothing known yet: ask once
+    if (isFinal(e)) return 0;
+    if (e.status === 'waiting') return feed.tip != null && feed.tip >= t.target ? CONFIG.ticketPollMs : 0;  // block not out yet
+    if (e.status === 'graded') return CONFIG.claimPollMs;
+    return CONFIG.claimPollMs;   // claimed: watch for the payout
+  }
+
+  async function pollTicket(t) {
+    t.nextPoll = Date.now() + (pollDelay(t) || CONFIG.claimPollMs);
+    const before = t.entry ? t.entry.status : '';
+    const j = await api('status', { token: t.token });
+    if (j && j.ok) {
+      t.entry = j.entry;
+      saveTickets();
+      renderTickets();
+      if (before === 'waiting' && j.entry.status !== 'waiting') sfx.ready();
+    } else if (j && j.error === 'ticket') {
+      paid.tickets = paid.tickets.filter((x) => x !== t);
+      saveTickets();
+      renderTickets();
+    }
+  }
+
+  function tickPaid() {
+    if (document.hidden) return;
+    const now = Date.now();
+    if (R.state === 'guess') {
+      if (!paid.loading && (now - paid.infoAt > CONFIG.infoRefreshMs || (paid.info && paid.info.ok && paid.info.target !== R.target && now - paid.infoAt > 4000))) loadInfo();
+      renderPaid();
+    }
+    for (const t of paid.tickets) {
+      if (pollDelay(t) && now >= t.nextPoll) pollTicket(t);
+    }
+  }
+
+  async function attachLnurl(t, input, btn) {
+    const lnurl = input.value.trim();
+    if (!lnurl) { input.focus(); return; }
+    btn.disabled = true;
+    const j = await api('attach', { token: t.token, lnurl });
+    btn.disabled = false;
+    if (j && j.entry) { t.entry = j.entry; saveTickets(); }
+    if (!j || !j.ok) { showNote('⚠️ ' + ((j && j.message) || 'Something went wrong.')); }
+    renderTickets();
+  }
+
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function lnurlRow(t, label) {
+    const row = el('div', 'row');
+    const input = el('input', 'lnurl-in');
+    input.type = 'text';
+    input.placeholder = 'lnurl1…';
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.setAttribute('autocapitalize', 'off');
+    input.setAttribute('aria-label', 'Your LNURL');
+    const btn = el('button', '', label);
+    btn.type = 'button';
+    btn.addEventListener('click', () => { sfx.unlock(); attachLnurl(t, input, btn); });
+    input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') btn.click(); });
+    row.appendChild(input);
+    row.appendChild(btn);
+    return row;
+  }
+
+  function scoreLine(e) {
+    const a = e.acc || {};
+    const parts = [a.time, a.tx, a.fee].filter((v) => v != null).map((v) => v + '%');
+    return parts.join(' + ') + ' → ' + e.score + '% = ' + fmtSats(e.sats || 0);
+  }
+
+  function renderTickets() {
+    const wrap = $('tickets');
+    wrap.textContent = '';
+    for (const t of paid.tickets) {
+      const e = t.entry || { status: 'waiting', spot: 0 };
+      const card = el('div', 'ticket' + (isFinal(e) ? ' done' : ''));
+      card.appendChild(el('h3', '', '🎟️ Sats entry · block #' + fmtInt(t.target) + (e.spot ? ' · spot ' + e.spot : '')));
+
+      if (e.status === 'waiting') {
+        if (e.hasLnurl) {
+          card.appendChild(el('p', '', '✅ LNURL saved. When block #' + fmtInt(t.target) + ' is found, your score is sent as sats automatically.'));
+        } else {
+          card.appendChild(el('p', '', 'Add your LNURL any time — even after the block is found — to get your sats.'));
+          card.appendChild(lnurlRow(t, 'Save'));
+        }
+        if (feed.tip != null && feed.tip >= t.target) card.appendChild(el('p', 'muted', 'Block found — checking your score…'));
+      } else if (e.status === 'graded') {
+        card.appendChild(el('p', 'big', scoreLine(e)));
+        const mins = e.claimSecondsLeft != null ? Math.max(1, Math.round(e.claimSecondsLeft / 60)) : null;
+        card.appendChild(el('p', '', '⚡ Claim your ' + fmtSats(e.sats) + ' now' + (mins ? ' (' + mins + ' min left)' : '') + ':'));
+        card.appendChild(lnurlRow(t, 'Claim'));
+      } else if (e.status === 'claimed') {
+        card.appendChild(el('p', 'big', scoreLine(e)));
+        const cs = e.claimStatus;
+        card.appendChild(el('p', '', cs === 'paid' ? '✅ Paid! Enjoy your sats.'
+          : cs === 'failed' || cs === 'blocked' ? '⚠️ The payout failed. Check that your LNURL is right.'
+          : '⚡ Claim #' + e.claimId + ' is queued — payouts are sent by the faucet admin, so it can take a while.'));
+      } else if (e.status === 'no_reward') {
+        card.appendChild(el('p', '', 'Score: ' + (e.score != null ? e.score + '%' : '—') + ' — too low for a reward this time. 🎲'));
+      } else {
+        card.appendChild(el('p', '', '⚠️ ' + (e.reason || 'This entry has ended.')));
+      }
+
+      if (e.status !== 'waiting') {
+        const x = el('button', 'x', '×');
+        x.type = 'button';
+        x.setAttribute('aria-label', 'Hide this entry');
+        x.addEventListener('click', () => {
+          paid.tickets = paid.tickets.filter((y) => y !== t);
+          saveTickets();
+          renderTickets();
+        });
+        card.appendChild(x);
+      }
+      wrap.appendChild(card);
+    }
+  }
+
   /* ================= Round logic ================= */
   const logFeeFromPos = (pos) => CONFIG.feeMin * Math.pow(CONFIG.feeMax / CONFIG.feeMin, pos / 1000);
   const posFromFee = (v) => Math.round(1000 * Math.log(clamp(v, CONFIG.feeMin, CONFIG.feeMax) / CONFIG.feeMin) / Math.log(CONFIG.feeMax / CONFIG.feeMin));
@@ -742,11 +1013,53 @@
     updateReadouts();
     updateHints();
     showView('guess');
+    renderPaid();
+    renderTickets();   // a new block may have made an entry's result checkable
+    if (!document.hidden) loadInfo();
   }
 
-  function lockIn() {
-    if (R.state !== 'guess') return;
-    R.guesses = { time: +$('gTime').value, tx: +$('gTx').value, fee: round2(logFeeFromPos(+$('gFee').value)) };
+  let locking = false;
+  async function lockIn() {
+    if (R.state !== 'guess' || locking) return;
+    const guesses = { time: +$('gTime').value, tx: +$('gTx').value, fee: round2(logFeeFromPos(+$('gFee').value)) };
+
+    // Ticked but paid entries closed meanwhile: say so, then lock in for fun.
+    if (!$('paidBox').hidden && $('paidOn').checked && $('paidOn').disabled) {
+      showNote('Paid entries are closed for this block, so these guesses are just for fun.', 6000);
+    }
+    // Playing for sats: the server has to accept the entry first (captcha, spot, time window).
+    if (!$('paidBox').hidden && $('paidOn').checked && !$('paidOn').disabled) {
+      const token = captchaToken();
+      if (!token) {
+        showNote('Please complete the CAPTCHA to play for sats — or untick "Play for real sats" to play for fun.');
+        return;
+      }
+      const target = R.target;
+      locking = true;
+      const btn = $('lockBtn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Locking in…';
+      const body = { target, time: guesses.time, tx: guesses.tx, fee: guesses.fee, lnurl: $('lnurlIn').value.trim() };
+      body[paid.captcha.provider === 'google' ? 'g-recaptcha-response' : 'h-captcha-response'] = token;
+      const j = await api('lock', body);
+      locking = false;
+      btn.disabled = false;
+      btn.textContent = '🔒 Lock in my guesses';
+      resetCaptcha();
+      if (!j || !j.ok) {
+        showNote('⚠️ ' + ((j && j.message) || 'Something went wrong.'), 9000);
+        if (j && ['stale', 'closed', 'full', 'duplicate'].includes(j.error)) loadInfo();
+        return;   // still in the guess view: they can retry, or untick and play for fun
+      }
+      addTicket({ token: j.token, target, entry: j.entry });
+      $('lnurlIn').value = '';
+      $('paidOn').checked = false;
+      if (paid.info && paid.info.ok) paid.info.spotsLeft = Math.max(0, paid.info.spotsLeft - 1);
+      showNote('🎟️ You got paid spot ' + j.spot + ' of ' + j.spotsTotal + ' for block #' + fmtInt(target) + '!', 6000);
+      if (R.state !== 'guess' || R.target !== target) return;   // a block landed while we waited; the ticket still counts
+    }
+
+    R.guesses = guesses;
     R.lockedAt = Date.now();
     R.state = 'wait';
     $('targetH2').textContent = fmtInt(R.target);
@@ -870,12 +1183,17 @@
     // while waiting, show how long it's been since the LAST block (the guess is measured from there)
     if (R.state === 'wait') $('elapsed').textContent = fmtClock(now - (feed.lastBlockAt || R.lockedAt));
     tickCooldown();
+    tickPaid();
   }
 
   /* ================= Wiring ================= */
   // sliders
   for (const id of ['gTime', 'gTx', 'gFee']) $(id).addEventListener('input', updateReadouts);
   $('lockBtn').addEventListener('click', () => { sfx.unlock(); lockIn(); });
+  $('paidOn').addEventListener('change', () => {
+    if ($('paidOn').checked) ensureCaptcha();
+    renderPaid();
+  });
   $('nextBtn').addEventListener('click', () => { sfx.unlock(); nextRound(); });
 
   // any first tap unlocks audio (browser autoplay rules)
@@ -978,6 +1296,8 @@
   else window.addEventListener('resize', resizeCanvas);
 
   /* ================= Go ================= */
+  loadTickets();
+  renderTickets();
   updateHud();
   resizeCanvas();
   setStatus('connecting');

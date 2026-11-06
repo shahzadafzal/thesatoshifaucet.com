@@ -862,6 +862,139 @@ body.game-popup-active {
     opacity:.7;
 }
 
+/* Block Race tile: pays real sats, so it stands out in Bitcoin orange */
+.game-tile{ position:relative; }
+.game-tile-earn{
+    background:linear-gradient(135deg,#f7931a,#d9670b);
+    box-shadow:0 6px 18px rgba(217,103,11,.4);
+}
+.game-tile-earn:hover:not(:disabled){ box-shadow:0 10px 24px rgba(217,103,11,.55); }
+.game-tile-badge{
+    position:absolute;
+    top:-9px;
+    right:8px;
+    font-size:.66rem;
+    font-weight:800;
+    letter-spacing:.02em;
+    color:#5a3200;
+    background:#ffd34d;
+    border-radius:999px;
+    padding:2px 8px;
+    box-shadow:0 2px 6px rgba(0,0,0,.18);
+    white-space:nowrap;
+}
+.game-tiles-win{ color:#d9670b; }
+
+/* ---- "Two ways to get sats" banner ---- */
+.ways{
+    margin:14px 0 18px;
+}
+.ways-title{
+    text-align:center;
+    font-weight:800;
+    font-size:1.05rem;
+    margin-bottom:10px;
+}
+.ways-row{
+    display:grid;
+    grid-template-columns:1fr auto 1fr;
+    align-items:stretch;
+    gap:10px;
+}
+.ways-or{
+    align-self:center;
+    font-weight:800;
+    font-size:.8rem;
+    text-transform:uppercase;
+    color:var(--text-muted);
+    background:#fff;
+    border:1px solid var(--border-color);
+    border-radius:999px;
+    padding:4px 9px;
+}
+.way{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+    text-align:center;
+    font:inherit;
+    color:#fff;
+    text-decoration:none;
+    border:0;
+    border-radius:16px;
+    padding:16px 14px 14px;
+    cursor:pointer;
+    transition:transform .2s, box-shadow .2s;
+}
+.way:hover{ transform:translateY(-3px); }
+.way:focus-visible{ outline:3px solid #ffd34d; outline-offset:3px; }
+.way-claim{
+    background:linear-gradient(135deg,#0b6fa4,#0a4d78);
+    box-shadow:0 6px 18px rgba(10,77,120,.35);
+}
+.way-earn{
+    background:linear-gradient(135deg,#f7931a,#d9670b);
+    box-shadow:0 6px 18px rgba(217,103,11,.45);
+    animation:way-glow 2.6s ease-in-out infinite;
+}
+@keyframes way-glow{
+    0%,100%{ box-shadow:0 6px 18px rgba(217,103,11,.45); }
+    50%{ box-shadow:0 6px 26px rgba(247,147,26,.85); }
+}
+@media (prefers-reduced-motion:reduce){ .way-earn{ animation:none; } }
+.way-icon{ font-size:34px; line-height:1; }
+.way-text{ display:flex; flex-direction:column; gap:4px; }
+.way-text strong{ font-size:1.12rem; }
+.way-text small{ font-size:.82rem; opacity:.92; line-height:1.4; }
+.way-cta{
+    margin-top:auto;
+    font-weight:800;
+    font-size:.85rem;
+    background:rgba(255,255,255,.2);
+    border-radius:999px;
+    padding:5px 14px;
+}
+.way-earn .way-cta{ background:#fff; color:#b35300; }
+.way-badge{
+    position:absolute;
+    top:-10px;
+    right:12px;
+    font-size:.7rem;
+    font-weight:800;
+    color:#5a3200;
+    background:#ffd34d;
+    border-radius:999px;
+    padding:2px 9px;
+    box-shadow:0 2px 6px rgba(0,0,0,.18);
+}
+/* Paid play switched off on the server: back to a plain "play while you wait" row */
+.br-paid-off .ways-or,
+.br-paid-off .way-earn,
+.br-paid-off .game-tile-badge,
+.br-paid-off .game-tiles-win{ display:none; }
+.br-paid-off .ways-row{ grid-template-columns:1fr; }
+.br-paid-off .ways-title{ display:none; }
+.br-paid-off .game-tile-earn{ background:linear-gradient(135deg,#0b6fa4,#0a4d78); box-shadow:0 6px 18px rgba(10,77,120,.35); }
+@media (max-width:560px){
+    .ways-row{ grid-template-columns:1fr; gap:8px; }
+    .ways-or{ justify-self:center; }
+    .way{
+        display:grid;
+        grid-template-columns:auto 1fr;
+        grid-template-areas:"icon text" "icon cta";
+        column-gap:12px;
+        row-gap:8px;
+        text-align:left;
+        align-items:center;
+        padding:14px;
+    }
+    .way-icon{ grid-area:icon; }
+    .way-text{ grid-area:text; }
+    .way-cta{ grid-area:cta; justify-self:start; margin-top:0; }
+}
+
 @media (max-width:480px){
     .game-tiles-row{
         grid-template-columns:1fr;

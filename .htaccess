@@ -1,3 +1,6 @@
+# No directory listings anywhere on the site (e.g. /admin-panel/, /game/, /images/)
+Options -Indexes
+
 <IfModule mod_headers.c>
   <FilesMatch "\.(html|htm)$">
     Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
