@@ -1050,12 +1050,14 @@
       btn.textContent = '🔒 Lock in my guesses';
       resetCaptcha();
       if (!j || !j.ok) {
+        if (window.track) window.track('block_race_paid_failed', { error: (j && j.error) || 'network' });
         showNote('⚠️ ' + ((j && j.message) || 'Something went wrong.'), 9000);
         if (j && j.error === 'daily_limit' && paid.info && paid.info.ok) { paid.info.dailyLeft = 0; renderPaid(); }
         if (j && ['stale', 'closed', 'full', 'duplicate'].includes(j.error)) loadInfo();
         return;   // still in the guess view: they can retry, or untick and play for fun
       }
       addTicket({ token: j.token, target, entry: j.entry });
+      if (window.track) window.track('block_race_paid_entry', { spot: j.spot });
       $('lnurlIn').value = '';
       $('paidOn').checked = false;
       if (paid.info && paid.info.ok) {
@@ -1066,6 +1068,7 @@
       if (R.state !== 'guess' || R.target !== target) return;   // a block landed while we waited; the ticket still counts
     }
 
+    if (window.track) window.track('block_race_lock_in');
     R.guesses = guesses;
     R.lockedAt = Date.now();
     R.state = 'wait';

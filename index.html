@@ -53,7 +53,7 @@ earn bitcoin free
   <!-- CAPTCHA script is loaded dynamically based on server config -->
   <!-- QR code reader for camera scan + image upload -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-  <script defer src="https://cloud.umami.is/script.js" data-website-id="a95ca758-29c2-4a8c-ae3c-3e2d35505735"></script>
+  <script src="assets/analytics.js?v=202611101200" defer></script>
 </head>
 
 <body onload="refreshBalance();">
@@ -519,8 +519,10 @@ earn bitcoin free
         })
           .then(r => r.json())
           .then(data => {
+            if (window.track) window.track(data.status === "queued" ? 'claim_queued' : 'claim_rejected',
+              { status: data.status || 'error', sats: data.sats || 0, source: claimSourceEl.value || 'paste' });
             if (data.status === "queued") {
-              
+
               //statusEl.textContent = data.message + " (Invoice: " + data.invoice + ")";
               //statusEl.classList.add("status-success");
 
