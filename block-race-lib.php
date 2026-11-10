@@ -24,6 +24,7 @@ function br_settings(): array {
         'min_sats'       => max(1, (int)($g['BLOCK_RACE_MIN_SATS'] ?? 1)),             // below this, nothing is paid
         'daily_budget'   => max(0, (int)($g['BLOCK_RACE_DAILY_BUDGET_SATS'] ?? 0)),    // 0 = no daily cap (faucet balance still applies)
         'claim_window'   => max(60, (int)($g['BLOCK_RACE_CLAIM_WINDOW_SECONDS'] ?? 3600)), // time to add an LNURL after grading
+        'daily_per_user' => max(0, (int)($g['BLOCK_RACE_MAX_CLAIMS_PER_DAY'] ?? 2)),    // sats rewards per IP or LNURL per day (0 = no limit)
         'api_base'       => rtrim((string)($g['BLOCK_RACE_MEMPOOL_API'] ?? 'https://mempool.space/api'), '/'),
     ];
     // Never promise more than the scheduler will accept.
@@ -193,6 +194,33 @@ function br_score(array $entry, array $block): array {
     ];
 }
 
+/* ================= Daily limit per player ================= */
+
+// How many of today's entries belong to this IP OR this LNURL (either one matching counts).
+// "Today" is the database server's calendar day, so the limit resets at its midnight.
+//   $statuses: which entries count, e.g. ['waiting','graded','claimed'] = still able to pay, or ['claimed'] = paid out
+//   $exceptId: leave this entry out (the one being checked)
+function br_daily_count(PDO $pdo, string $ip, ?string $lnurl, array $statuses, int $exceptId = 0): int {
+    $in = implode(',', array_map(fn($st) => $pdo->quote($st), $statuses));
+    $sql = "SELECT COUNT(*) FROM block_race_entries
+            WHERE created_at >= CURDATE() AND status IN ($in) AND id <> :id
+              AND (ip_address = :ip" . ($lnurl !== null && $lnurl !== '' ? " OR LOWER(lnurl) = LOWER(:l)" : "") . ")";
+    $stmt = $pdo->prepare($sql);
+    $params = [':id' => $exceptId, ':ip' => $ip];
+    if ($lnurl !== null && $lnurl !== '') $params[':l'] = $lnurl;
+    $stmt->execute($params);
+    return (int)$stmt->fetchColumn();
+}
+
+// Entries that can still turn into a payout, plus the ones that already did.
+const BR_LIVE_STATUSES = ['waiting', 'graded', 'claimed'];
+
+function br_daily_limit_message(): string {
+    $n = br_settings()['daily_per_user'];
+    return "You've reached today's limit of {$n} Block Race sats " . ($n === 1 ? 'reward' : 'rewards')
+         . ' (per player and per LNURL). Come back tomorrow — you can still play for fun!';
+}
+
 /* ================= Grading & claims ================= */
 
 // Grade every waiting entry for one block height. Returns the number of claims created (0 if the block isn't out yet).
@@ -258,6 +286,12 @@ function br_create_claim(PDO $pdo, int $entryId): array {
             $pdo->commit();
             return ['ok' => false, 'reason' => $reason];
         };
+
+        // Final guard for the per-player daily limit (also catches entries made before the limit existed).
+        if ($s['daily_per_user'] > 0 &&
+            br_daily_count($pdo, (string)$e['ip_address'], $e['lnurl'], ['claimed'], $entryId) >= $s['daily_per_user']) {
+            return $fail('Daily Block Race limit reached for this player or LNURL');
+        }
 
         if ($s['daily_budget'] > 0) {
             $used = (int)$pdo->query("

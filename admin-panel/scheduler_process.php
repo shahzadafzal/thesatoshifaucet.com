@@ -67,6 +67,7 @@ if (!file_exists($configFile)) {
     exit(1);
 }
 require $configFile;
+require_once __DIR__ . '/../faucet-balance-lib.php';   // faucet_recalc_balance()
 
 /*
 $REWARD_SATS = isset($REWARD_SATS) ? (int) $REWARD_SATS : 100;
@@ -473,6 +474,9 @@ function mark_failed(PDO $pdo, int $id, string $reason, bool $refundOnFail, stri
     }
 
     $pdo->commit();
+
+    // Set the balance from the funding ledger (corrects any earlier drift; no-op until faucet_funding exists).
+    faucet_recalc_balance($pdo);
 }
 
 

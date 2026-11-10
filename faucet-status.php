@@ -66,7 +66,7 @@ foreach ($statusRows as $row) {
 
     $totalRequests  += $cnt;
     $totalRequested += $req;
-    $totalSent      += $sent;
+    if ($st === 'paid') $totalSent += $sent;   // only paid claims actually sent sats
 }
 
 // Last updated time

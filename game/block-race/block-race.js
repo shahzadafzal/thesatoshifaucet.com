@@ -740,6 +740,7 @@
     if (!info.ok) closed = "Can't reach the faucet server right now — play for fun, we'll keep trying.";
     else if (info.target !== R.target) closed = 'Checking the latest block…';
     else if (entered) closed = "✅ You're already entered for sats on this block.";
+    else if (info.dailyLeft === 0) closed = "You've used today's " + info.dailyLimit + ' sats ' + (info.dailyLimit === 1 ? 'reward' : 'rewards') + ' — come back tomorrow! You can still play for fun.';
     else if (info.spotsLeft <= 0) closed = 'All ' + info.spotsTotal + ' paid spots for block #' + fmtInt(R.target) + ' are taken — play for fun and be quicker next block!';
     else if (secsLeft <= 0) closed = 'Paid entries for block #' + fmtInt(R.target) + ' closed ' + Math.round(info.lockWindow / 60) + ' min after the last block — play for fun and try again next block!';
 
@@ -752,9 +753,11 @@
     $('paidClosed').hidden = !closed;
     $('paidClosed').textContent = closed;
     $('paidSpots').textContent = !info.ok ? '' : closed && !entered && info.target === R.target
-      ? (info.spotsLeft <= 0 ? 'No spots left' : 'Closed')
+      ? (info.dailyLeft === 0 ? 'Daily limit reached' : info.spotsLeft <= 0 ? 'No spots left' : 'Closed')
       : closed ? '' : info.spotsLeft + ' of ' + info.spotsTotal + ' spots left · closes in ' + fmtClock(secsLeft * 1000);
-    if (info.ok) setText('paidHint', 'Your score becomes sats: 1% = 1 sat, up to ' + fmtSats(info.maxSats) + '. The LNURL can be added later, even after the block is found.');
+    if (info.ok) setText('paidHint', 'Your score becomes sats: 1% = 1 sat, up to ' + fmtSats(info.maxSats) + '.' +
+      (info.dailyLimit > 0 ? ' Max ' + info.dailyLimit + ' sats ' + (info.dailyLimit === 1 ? 'reward' : 'rewards') + ' a day per player and per LNURL.' : '') +
+      ' The LNURL can be added later, even after the block is found.');
   }
 
   // hCaptcha (or reCAPTCHA, whichever the faucet uses), loaded only when someone ticks "Play for real sats".
@@ -1048,13 +1051,17 @@
       resetCaptcha();
       if (!j || !j.ok) {
         showNote('⚠️ ' + ((j && j.message) || 'Something went wrong.'), 9000);
+        if (j && j.error === 'daily_limit' && paid.info && paid.info.ok) { paid.info.dailyLeft = 0; renderPaid(); }
         if (j && ['stale', 'closed', 'full', 'duplicate'].includes(j.error)) loadInfo();
         return;   // still in the guess view: they can retry, or untick and play for fun
       }
       addTicket({ token: j.token, target, entry: j.entry });
       $('lnurlIn').value = '';
       $('paidOn').checked = false;
-      if (paid.info && paid.info.ok) paid.info.spotsLeft = Math.max(0, paid.info.spotsLeft - 1);
+      if (paid.info && paid.info.ok) {
+        paid.info.spotsLeft = Math.max(0, paid.info.spotsLeft - 1);
+        if (paid.info.dailyLeft != null) paid.info.dailyLeft = Math.max(0, paid.info.dailyLeft - 1);
+      }
       showNote('🎟️ You got paid spot ' + j.spot + ' of ' + j.spotsTotal + ' for block #' + fmtInt(target) + '!', 6000);
       if (R.state !== 'guess' || R.target !== target) return;   // a block landed while we waited; the ticket still counts
     }

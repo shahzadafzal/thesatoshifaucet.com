@@ -55,6 +55,8 @@ try {
     exit;
 }
 
+require_once __DIR__ . '/../faucet-balance-lib.php';   // faucet_recalc_balance(), faucet_add_funding()
+
 $DEFAULT_REWARD_SATS = isset($REWARD_SATS) ? (int) $REWARD_SATS : 100;
 if ($DEFAULT_REWARD_SATS <= 0) {
     $DEFAULT_REWARD_SATS = 100;
@@ -459,8 +461,15 @@ if (isset($_POST['update_status'])) {
     $txRef   = $_POST['tx_reference'] ?? '';
     $reason  = $_POST['reason'] ?? '';
 
-    if ($satsSent <= 0) {
-        $satsSent = $DEFAULT_REWARD_SATS; // default if none set
+    // Only a paid claim has sats sent. Paid with an empty/zero box = the amount the claim asked for;
+    // failed / blocked / pending / processing = nothing sent.
+    if ($status !== 'paid') {
+        $satsSent = 0;
+    } elseif ($satsSent <= 0 && $id > 0) {
+        $req = $pdo->prepare("SELECT sats_requested FROM faucet_claims WHERE id = :id");
+        $req->execute([':id' => $id]);
+        $satsSent = (int)$req->fetchColumn();
+        if ($satsSent <= 0) $satsSent = $DEFAULT_REWARD_SATS;
     }
 
     if ($id > 0 && in_array($status, $allowedStatuses, true)) {
@@ -479,7 +488,24 @@ if (isset($_POST['update_status'])) {
             ':id'        => $id,
             ':reason'    => $reason,
         ]);
-        $updateMessage = "Updated transaction #{$id} to status '{$status}' with sats_sent={$satsSent}.";
+        $newBalance = faucet_recalc_balance($pdo);   // paid / failed / blocked all change what's left
+        $updateMessage = "Updated transaction #{$id} to status '{$status}' with sats_sent={$satsSent}."
+            . ($newBalance !== null ? ' Balance: ' . number_format($newBalance) . ' sats.' : '');
+    }
+}
+
+// --- Add funds (donation / top-up / correction) ---
+if (isset($_POST['add_funding'])) {
+    $amount = isset($_POST['funding_amount']) ? (int) $_POST['funding_amount'] : 0;
+    $kind   = (string) ($_POST['funding_kind'] ?? 'topup');
+    $note   = trim((string) ($_POST['funding_note'] ?? ''));
+    if (!faucet_funding_ready($pdo)) {
+        $updateMessage = 'Run add-faucet-funding.sql first to create the funding table.';
+    } elseif ($amount === 0 || ($kind !== 'adjustment' && $amount < 0)) {
+        $updateMessage = 'Enter an amount in sats (only a correction can be negative).';
+    } else {
+        $newBalance = faucet_add_funding($pdo, $amount, $kind, $note);
+        $updateMessage = 'Added ' . number_format($amount) . " sats ({$kind}). Balance: " . number_format($newBalance) . ' sats.';
     }
 }
 
@@ -566,6 +592,13 @@ if ($row) {
     $paid24hSats = (int)$row['total_sent'];
     $paid24hCount = (int)$row['paid_count'];
 }
+
+// Faucet money: funded - sent - reserved = balance (null until add-faucet-funding.sql has been run).
+$fundTotals = faucet_funding_ready($pdo) ? faucet_balance_totals($pdo) : null;
+$fundStored = (int)$pdo->query("SELECT balance_sats FROM faucet_balance WHERE id = 1")->fetchColumn();
+$fundRows = $fundTotals
+    ? $pdo->query("SELECT amount_sats, kind, note, created_at FROM faucet_funding ORDER BY created_at DESC, id DESC LIMIT 10")->fetchAll()
+    : [];
 
 // (b) Paid across the last N paid transactions (N = $statN, admin-adjustable).
 $paidLastNSats = 0;
@@ -816,6 +849,48 @@ if ($row) {
     .stat-card form {
       display: inline;
     }
+
+    .funding-panel {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .funding-panel summary { cursor: pointer; }
+    .funding-panel summary strong { color: #1a7f37; }
+    .funding-sum { color: #555; }
+    .funding-warn { color: #b05a00; }
+    .funding-form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      align-items: flex-end;
+      margin: 10px 0;
+    }
+    .funding-form label { display: flex; flex-direction: column; gap: 2px; font-size: 0.8rem; }
+    .funding-form input, .funding-form select {
+      padding: 4px 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+    .funding-amount { width: 120px; }
+    .funding-note-label { flex: 1 1 200px; }
+    .funding-form button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      background: #1a7f37;
+      color: #fff;
+      cursor: pointer;
+    }
+    .funding-table { border-collapse: collapse; width: 100%; font-size: 0.8rem; }
+    .funding-table th, .funding-table td { border-bottom: 1px solid #eee; padding: 4px 6px; text-align: left; }
+    .funding-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .funding-help { color: #777; font-size: 0.75rem; margin-top: 6px; }
 
     .stat-n-input {
       width: 55px;
@@ -1141,6 +1216,57 @@ if ($row) {
         (<?php echo number_format($paidLastNCount); ?> found &mdash; change "Paid stat N" below and Apply)
       </div>
     </div>
+
+    <!-- ===== Faucet money: funding ledger -> balance ===== -->
+    <details class="funding-panel">
+      <summary>
+        &#128176; Faucet balance:
+        <strong><?php echo number_format($fundStored); ?> sats</strong>
+        <?php if ($fundTotals): ?>
+          <span class="funding-sum">= funded <?php echo number_format($fundTotals['funded']); ?>
+            &minus; sent <?php echo number_format($fundTotals['sent']); ?>
+            &minus; reserved <?php echo number_format($fundTotals['reserved']); ?></span>
+          <?php if ($fundTotals['balance'] !== $fundStored): ?>
+            <span class="funding-warn">(should be <?php echo number_format($fundTotals['balance']); ?> &mdash; it will correct itself on the next status change or added funds)</span>
+          <?php endif; ?>
+        <?php else: ?>
+          <span class="funding-warn">Run add-faucet-funding.sql to start tracking funding.</span>
+        <?php endif; ?>
+      </summary>
+      <?php if ($fundTotals): ?>
+        <form method="post" class="funding-form">
+          <input type="hidden" name="add_funding" value="1" />
+          <label>Amount (sats)
+            <input type="number" name="funding_amount" step="1" required class="funding-amount" />
+          </label>
+          <label>Type
+            <select name="funding_kind">
+              <option value="donation">Donation</option>
+              <option value="topup">Top-up (I funded it)</option>
+              <option value="adjustment">Correction (+/&minus;)</option>
+            </select>
+          </label>
+          <label class="funding-note-label">Note
+            <input type="text" name="funding_note" maxlength="255" placeholder="e.g. donation from @someone" />
+          </label>
+          <button type="submit" onclick="return confirm('Add ' + this.form.funding_amount.value + ' sats to the faucet funding?');">Add funds</button>
+        </form>
+        <table class="funding-table">
+          <thead><tr><th>Date</th><th>Type</th><th>Sats</th><th>Note</th></tr></thead>
+          <tbody>
+            <?php foreach ($fundRows as $f): ?>
+              <tr>
+                <td><?php echo htmlspecialchars($f['created_at'], ENT_QUOTES, 'UTF-8'); ?></td>
+                <td><?php echo htmlspecialchars($f['kind'], ENT_QUOTES, 'UTF-8'); ?></td>
+                <td class="num"><?php echo number_format((int)$f['amount_sats']); ?></td>
+                <td><?php echo htmlspecialchars((string)$f['note'], ENT_QUOTES, 'UTF-8'); ?></td>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+        <div class="funding-help">Sent = sats_sent of paid claims. Reserved = pending + processing claims (not sent yet). Last 10 funding entries shown.</div>
+      <?php endif; ?>
+    </details>
 
     <!-- ===== Run Scheduler Panel ===== -->
     <div class="scheduler-bar">

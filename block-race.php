@@ -65,6 +65,10 @@ try {
         $cnt->execute([':h' => $target]);
         $taken = (int)$cnt->fetchColumn();
         $elapsed = max(0, time() - $tip['timestamp']);
+        // Daily limit for this visitor's IP (the LNURL is checked at lock-in / attach, when we know it).
+        $dailyLeft = $s['daily_per_user'] > 0
+            ? max(0, $s['daily_per_user'] - br_daily_count($pdo, $ip, null, BR_LIVE_STATUSES))
+            : null;
         br_out([
             'ok'          => true,
             'enabled'     => true,
@@ -76,6 +80,8 @@ try {
             'spotsLeft'   => max(0, $s['winners'] - $taken),
             'maxSats'     => $s['max_sats'],
             'claimWindow' => $s['claim_window'],
+            'dailyLimit'  => $s['daily_per_user'],   // 0 = no limit
+            'dailyLeft'   => $dailyLeft,             // null = no limit
         ]);
     }
 
@@ -124,6 +130,10 @@ try {
             if ((int)$row['mine'] > 0) br_fail('duplicate', 'You already have a sats entry for this block.');
             if ((int)$row['n'] >= $s['winners']) br_fail('full', 'All ' . $s['winners'] . ' paid spots for this block are taken. You can still play for fun!', ['spotsLeft' => 0]);
             if ($lnurl !== null && br_lnurl_taken($pdo, $target, $lnurl)) br_fail('lnurl_taken', 'That LNURL already has an entry for this block.');
+            // Max N sats rewards a day per IP or per LNURL (entries still waiting/graded count, so nobody can stack them up).
+            if ($s['daily_per_user'] > 0 && br_daily_count($pdo, $ip, $lnurl, BR_LIVE_STATUSES) >= $s['daily_per_user']) {
+                br_fail('daily_limit', br_daily_limit_message(), ['dailyLeft' => 0]);
+            }
 
             $token = bin2hex(random_bytes(16));
             $spot = (int)$row['n'] + 1;
@@ -168,6 +178,11 @@ try {
         }
         if (br_lnurl_taken($pdo, (int)$entry['target_height'], $lnurl, (int)$entry['id'])) {
             br_fail('lnurl_taken', 'That LNURL already has an entry for this block.');
+        }
+        // This LNURL (or the entry's IP) already has today's rewards elsewhere.
+        if ($s['daily_per_user'] > 0 &&
+            br_daily_count($pdo, (string)$entry['ip_address'], $lnurl, BR_LIVE_STATUSES, (int)$entry['id']) >= $s['daily_per_user']) {
+            br_fail('daily_limit', br_daily_limit_message());
         }
         $pdo->prepare("UPDATE block_race_entries SET lnurl = :l WHERE id = :id AND lnurl IS NULL")
             ->execute([':l' => $lnurl, ':id' => $entry['id']]);
