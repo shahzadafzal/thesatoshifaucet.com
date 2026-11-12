@@ -25,6 +25,8 @@ function br_settings(): array {
         'daily_budget'   => max(0, (int)($g['BLOCK_RACE_DAILY_BUDGET_SATS'] ?? 0)),    // 0 = no daily cap (faucet balance still applies)
         'claim_window'   => max(60, (int)($g['BLOCK_RACE_CLAIM_WINDOW_SECONDS'] ?? 3600)), // time to add an LNURL after grading
         'daily_per_user' => max(0, (int)($g['BLOCK_RACE_MAX_CLAIMS_PER_DAY'] ?? 2)),    // sats rewards per IP or LNURL per day (0 = no limit)
+        'reject_same_guess' => isset($g['BLOCK_RACE_REJECT_SAME_GUESSES']) ? (bool)$g['BLOCK_RACE_REJECT_SAME_GUESSES'] : true, // one paid spot per exact guess set per block
+        'flag_same_device'  => max(0, (int)($g['BLOCK_RACE_FLAG_SAME_DEVICE'] ?? 3)),  // N+ winners in one block with the same browser string -> claims created as 'blocked' for review (0 = off)
         'api_base'       => rtrim((string)($g['BLOCK_RACE_MEMPOOL_API'] ?? 'https://mempool.space/api'), '/'),
     ];
     // Never promise more than the scheduler will accept.
@@ -305,20 +307,28 @@ function br_create_claim(PDO $pdo, int $entryId): array {
         $bal = (int)$pdo->query("SELECT balance_sats FROM faucet_balance WHERE id = 1 FOR UPDATE")->fetchColumn();
         if ($bal < $sats) return $fail('Faucet is empty right now');
 
+        // Looks like one player farming several spots? Create the claim as 'blocked' with the reason, for the admin to review.
+        // (Unblocking it to 'pending' in the admin panel puts it back in the normal flow and takes the sats off then.)
+        $flag = br_farming_reason($pdo, $e, $s);
+
         // cooldown_seconds = 0: game claims never hold up the normal faucet's global cooldown.
         $pdo->prepare("
-            INSERT INTO faucet_claims (invoice, ip_address, sats_requested, status, user_agent, payment_type, claim_source, cooldown_seconds)
-            VALUES (:inv, :ip, :sats, 'pending', :ua, 'lnurl', :src, 0)
+            INSERT INTO faucet_claims (invoice, ip_address, sats_requested, status, reason, user_agent, payment_type, claim_source, cooldown_seconds)
+            VALUES (:inv, :ip, :sats, :st, :rs, :ua, 'lnurl', :src, 0)
         ")->execute([
             ':inv'  => $e['lnurl'],
             ':ip'   => $e['ip_address'],
             ':sats' => $sats,
+            ':st'   => $flag === null ? 'pending' : 'blocked',
+            ':rs'   => $flag === null ? null : 'Flagged for review: ' . $flag,
             ':ua'   => $e['user_agent'],
             ':src'  => BR_SOURCE,
         ]);
         $claimId = (int)$pdo->lastInsertId();
 
-        $pdo->prepare("UPDATE faucet_balance SET balance_sats = balance_sats - :amt WHERE id = 1")->execute([':amt' => $sats]);
+        if ($flag === null) {
+            $pdo->prepare("UPDATE faucet_balance SET balance_sats = balance_sats - :amt WHERE id = 1")->execute([':amt' => $sats]);
+        }
         $pdo->prepare("UPDATE block_race_entries SET status = 'claimed', claim_id = :c, reason = NULL WHERE id = :id")
             ->execute([':c' => $claimId, ':id' => $entryId]);
         $pdo->commit();
@@ -327,6 +337,26 @@ function br_create_claim(PDO $pdo, int $entryId): array {
         if ($pdo->inTransaction()) $pdo->rollBack();
         throw $ex;
     }
+}
+
+// Signs that one player is taking several paid spots in the same block from rotating IPs and wallets:
+//  - N or more entries in the block share this entry's exact browser string, or
+//  - another entry in the block has the same browser string and the same time + tx guesses (fee nudged to dodge the duplicate check).
+// Returns a short reason, or null when the entry looks fine.
+function br_farming_reason(PDO $pdo, array $e, array $s): ?string {
+    $n = $s['flag_same_device'];
+    $ua = (string)($e['user_agent'] ?? '');
+    if ($n <= 0 || $ua === '') return null;
+    $q = $pdo->prepare("
+        SELECT COUNT(*) AS same_ua,
+               SUM(id <> :id AND guess_time_min = :gt AND guess_tx = :gx) AS near_copy
+        FROM block_race_entries WHERE target_height = :h AND user_agent = :ua
+    ");
+    $q->execute([':id' => $e['id'], ':gt' => $e['guess_time_min'], ':gx' => $e['guess_tx'], ':h' => $e['target_height'], ':ua' => $ua]);
+    $r = $q->fetch();
+    if ((int)$r['same_ua'] >= $n) return (int)$r['same_ua'] . ' entries in block ' . $e['target_height'] . ' from the same browser';
+    if ((int)$r['near_copy'] > 0) return 'near-identical guesses from the same browser in block ' . $e['target_height'];
+    return null;
 }
 
 // Close entries nobody will finish: graded with no LNURL past the claim window, or waiting on a block for over a day.

@@ -130,6 +130,15 @@ try {
             if ((int)$row['mine'] > 0) br_fail('duplicate', 'You already have a sats entry for this block.');
             if ((int)$row['n'] >= $s['winners']) br_fail('full', 'All ' . $s['winners'] . ' paid spots for this block are taken. You can still play for fun!', ['spotsLeft' => 0]);
             if ($lnurl !== null && br_lnurl_taken($pdo, $target, $lnurl)) br_fail('lnurl_taken', 'That LNURL already has an entry for this block.');
+            // Anti-farming: one paid spot per exact set of guesses per block (copies of one entry from rotating IPs/wallets).
+            if ($s['reject_same_guess']) {
+                $dup = $pdo->prepare("SELECT 1 FROM block_race_entries
+                                      WHERE target_height = :h AND guess_time_min = :gt AND guess_tx = :gx AND guess_fee = :gf LIMIT 1");
+                $dup->execute([':h' => $target, ':gt' => $time, ':gx' => $tx, ':gf' => round($fee, 2)]);
+                if ($dup->fetchColumn()) {
+                    br_fail('same_guess', 'Someone already took a paid spot with exactly these guesses for this block. Change one of your guesses a little and try again.');
+                }
+            }
             // Max N sats rewards a day per IP or per LNURL (entries still waiting/graded count, so nobody can stack them up).
             if ($s['daily_per_user'] > 0 && br_daily_count($pdo, $ip, $lnurl, BR_LIVE_STATUSES) >= $s['daily_per_user']) {
                 br_fail('daily_limit', br_daily_limit_message(), ['dailyLeft' => 0]);
