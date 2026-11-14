@@ -17,6 +17,7 @@ try {
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
+    $pdo->exec("SET time_zone = '+00:00'");   // times go out as UTC; the page shows them in the visitor's own zone
 } catch (Throwable $e) {
     echo json_encode(['items' => [], 'error' => 'db error']);
     exit;

@@ -11,8 +11,8 @@ if (!file_exists($configFile)) {
     exit;
 }
 require $configFile;
+require __DIR__ . '/local-time.php';   // utc_time(): times are shown in each visitor's own time zone (assets/localtime.js)
 
-// Set a timezone for display (change if you prefer)
 date_default_timezone_set('UTC');
 
 // --- Connect to DB ---
@@ -22,6 +22,7 @@ try {
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
+    db_use_utc($pdo);
 } catch (Throwable $e) {
     http_response_code(500);
     echo "Could not connect to database.";
@@ -71,9 +72,7 @@ foreach ($statusRows as $row) {
 
 // Last updated time
 $lastUpdatedRow = $pdo->query("SELECT MAX(updated_at) AS last_updated FROM faucet_claims")->fetch();
-$lastUpdated = $lastUpdatedRow && $lastUpdatedRow['last_updated']
-    ? (new DateTime($lastUpdatedRow['last_updated']))->format('Y-m-d H:i:s')
-    : 'N/A';
+$lastUpdated = utc_time($lastUpdatedRow['last_updated'] ?? null, 'N/A');   // HTML
 
 // --- Recent transactions (anonymised) ---
 $limit = 50;
@@ -128,6 +127,7 @@ lightning faucet status
 
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="assets/analytics.js?v=202611101200" defer></script>
+  <script src="assets/localtime.js?v=202611131200" defer></script>
   <!-- Favicon -->
   <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="images//favicon-16x16.png">
@@ -159,6 +159,31 @@ lightning faucet status
       margin: 0 auto;
       padding: 24px 16px 40px;
     }
+
+    /* Refresh controls under "Last updated" */
+    .refresh-bar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      margin-top: 10px;
+      font-size: 0.9rem;
+    }
+    .refresh-btn {
+      font: inherit;
+      font-weight: 600;
+      padding: 6px 14px;
+      border: 1px solid var(--accent);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--accent);
+      cursor: pointer;
+    }
+    .refresh-btn:hover { background: var(--accent-soft); }
+    .refresh-btn:disabled { opacity: .6; cursor: default; }
+    .refresh-auto { display: inline-flex; align-items: center; gap: 6px; color: #555; cursor: pointer; }
+    .refresh-note { color: #888; font-size: 0.85rem; }
+    .tz-hint { color: #888; font-size: 0.85rem; }
 
     /* ── Shared site header ─────────────────────────────── */
     .site-header {
@@ -455,11 +480,17 @@ lightning faucet status
       <div class="subtitle" style="color:#555;">
         A public peek at what the faucet is doing: queued, processing, paid, and failed requests.
       </div>
-      <div class="meta">
-        Last updated: <strong><?php echo htmlspecialchars($lastUpdated, ENT_QUOTES, 'UTF-8'); ?> UTC</strong>
+      <div class="meta" id="live-meta">
+        Last updated: <strong><?php echo $lastUpdated; ?></strong> <span class="tz-hint">(your time: <span data-tz-name>UTC</span>)</span>
+      </div>
+      <div class="refresh-bar">
+        <button type="button" id="refreshBtn" class="refresh-btn">↻ Refresh</button>
+        <label class="refresh-auto"><input type="checkbox" id="autoRefresh" checked> Auto-refresh every 30s</label>
+        <span id="refreshNote" class="refresh-note" aria-live="polite"></span>
       </div>
     </div>
 
+    <div id="live-status">
     <!-- Summary cards -->
     <div class="summary-grid">
       <div class="card">
@@ -530,8 +561,8 @@ lightning faucet status
               <th>Invoice (truncated)</th>
               <th>Status</th>
               <th>Sats requested / sent</th>
-              <th>Created (UTC)</th>
-              <th>Updated (UTC)</th>
+              <th>Created</th>
+              <th>Updated</th>
             </tr>
           </thead>
           <tbody>
@@ -574,8 +605,8 @@ lightning faucet status
                 <div>Requested:🪙 <?php echo number_format((int)$c['sats_requested']); ?> sats</div>
                 <div>Sent:🪙 <?php echo number_format((int)$c['sats_sent']); ?> sats</div>
               </td>
-              <td>📆<?php echo htmlspecialchars($c['created_at'], ENT_QUOTES, 'UTF-8'); ?></td>
-              <td>📆<?php echo htmlspecialchars($c['updated_at'], ENT_QUOTES, 'UTF-8'); ?></td>
+              <td>📆<?php echo utc_time($c['created_at']); ?></td>
+              <td>📆<?php echo utc_time($c['updated_at']); ?></td>
             </tr>
           <?php endforeach; ?>
           </tbody>
@@ -585,6 +616,7 @@ lightning faucet status
         Invoices are truncated on this public page for privacy. Your full invoice is never shown here.
       </div>
     </div>
+    </div><!-- /#live-status -->
 
     <footer>
       This status page is informational only. The faucet’s sending logic runs offline and independently of this web server.
@@ -595,6 +627,50 @@ lightning faucet status
           | <a href="support" style="font-size:0.8rem;">☕ Support the faucet</a>
     </footer>
   </div>
-</script>
+  <script>
+  // Refresh the numbers and the activity table in place (no full page reload, so no scroll jump
+  // and no extra page views in analytics). Auto-refresh pauses while the tab is hidden.
+  (function () {
+    var EVERY = 30000;
+    var btn = document.getElementById('refreshBtn');
+    var auto = document.getElementById('autoRefresh');
+    var note = document.getElementById('refreshNote');
+    var timer = null, busy = false;
+    try { if (localStorage.getItem('tsfStatusAuto') === 'off') auto.checked = false; } catch (e) {}
+
+    function refresh() {
+      if (busy) return;
+      busy = true;
+      btn.disabled = true;
+      note.textContent = 'Refreshing…';
+      fetch(location.href, { cache: 'no-store' })
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+        .then(function (html) {
+          var doc = new DOMParser().parseFromString(html, 'text/html');
+          ['live-meta', 'live-status'].forEach(function (id) {
+            var fresh = doc.getElementById(id), cur = document.getElementById(id);
+            if (fresh && cur) cur.innerHTML = fresh.innerHTML;
+          });
+          note.textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        })
+        .catch(function () { note.textContent = 'Couldn’t refresh — will try again.'; })
+        .then(function () { busy = false; btn.disabled = false; schedule(); });
+    }
+    function schedule() {
+      clearTimeout(timer);
+      if (auto.checked && !document.hidden) timer = setTimeout(refresh, EVERY);
+    }
+    btn.addEventListener('click', refresh);
+    auto.addEventListener('change', function () {
+      try { localStorage.setItem('tsfStatusAuto', auto.checked ? 'on' : 'off'); } catch (e) {}
+      schedule();
+    });
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) clearTimeout(timer);
+      else if (auto.checked) refresh();   // back on the tab: catch up straight away
+    });
+    schedule();
+  })();
+  </script>
 </body>
 </html>

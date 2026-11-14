@@ -54,6 +54,7 @@ earn bitcoin free
   <!-- QR code reader for camera scan + image upload -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
   <script src="assets/analytics.js?v=202611101200" defer></script>
+  <script src="assets/localtime.js?v=202611131200" defer></script>
 </head>
 
 <body onload="refreshBalance();">
@@ -783,7 +784,7 @@ earn bitcoin free
 
           const lastTime = item.updatedAt || item.createdAt || "";
           timeSpan.title = lastTime
-            ? "Last update: " + lastTime + " UTC"
+            ? "Last update: " + (window.tsfLocalTime ? window.tsfLocalTime(lastTime) : lastTime + " UTC")
             : "No timestamp";
 
           colTime.appendChild(timeSpan);

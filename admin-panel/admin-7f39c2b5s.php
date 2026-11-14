@@ -6,8 +6,6 @@
 // - View & filter transactions
 // - Change status, sats_sent, tx_reference
 
-session_start();
-
 $helpterFile = __DIR__ . '/../helper.php';
 
 if (!file_exists($helpterFile)) {
@@ -29,6 +27,8 @@ if (!file_exists($configFile)) {
     exit;
 }
 require $configFile;
+require_once __DIR__ . '/admin-session.php';
+admin_session_start();   // stays logged in for $ADMIN_SESSION_HOURS of inactivity (default 12)
 
 if (empty($DB_HOST) || empty($DB_NAME) || empty($DB_USER)) {
     http_response_code(500);
@@ -49,6 +49,8 @@ try {
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
+    require_once __DIR__ . '/../local-time.php';
+    db_use_utc($pdo);   // times come back as UTC; assets/localtime.js shows them in the admin's own time zone
 } catch (Throwable $e) {
     http_response_code(500);
     echo "Could not connect to DB.";
@@ -69,7 +71,7 @@ $loginError = '';
 if (isset($_POST['admin_login'])) {
     $pass = $_POST['admin_password'] ?? '';
     if (hash_equals($ADMIN_PASSWORD, $pass)) {
-        $_SESSION['is_admin'] = true;
+        admin_session_login();
         $isLoggedIn = true;
     } else {
         $loginError = 'Invalid password.';
@@ -247,6 +249,14 @@ $searchId        = trim((string)($_GET['search_id'] ?? $_POST['search_id'] ?? ''
 $searchAmount    = trim((string)($_GET['search_amount'] ?? $_POST['search_amount'] ?? ''));
 $dateFrom        = trim((string)($_GET['date_from'] ?? $_POST['date_from'] ?? ''));
 $dateTo          = trim((string)($_GET['date_to'] ?? $_POST['date_to'] ?? ''));
+$tzOffset        = max(-840, min(840, (int)($_GET['tz_offset'] ?? $_POST['tz_offset'] ?? 0)));   // browser's minutes behind UTC (UAE = -240)
+// The From/To boxes are typed in the admin's local time; the stored times are UTC. Shift by the browser's offset.
+$toUtcInput = function (string $local) use ($tzOffset): string {
+    $ts = DateTime::createFromFormat('!Y-m-d\TH:i', $local, new DateTimeZone('UTC'));
+    return $ts ? gmdate('Y-m-d\TH:i', $ts->getTimestamp() + $tzOffset * 60) : $local;
+};
+$dateFromUtc = $dateFrom === '' ? '' : $toUtcInput($dateFrom);
+$dateToUtc   = $dateTo === '' ? '' : $toUtcInput($dateTo);
 
 $statN = 1;
 if (isset($_GET['stat_n'])) {
@@ -522,8 +532,8 @@ $filter = build_claims_filter(
     $filterStatuses,
     $allowedStatuses,
     $filterLast24,
-    $dateFrom,
-    $dateTo,
+    $dateFromUtc,   // the admin typed local time; converted to UTC above
+    $dateToUtc,
     $ipSearch,
     $lnurlUserSearch,
     $domainSearch,
@@ -532,6 +542,55 @@ $filter = build_claims_filter(
 );
 $where = $filter['where'];
 $params = $filter['params'];
+
+// --- CSV download: the same filters, sort and "Show" count as the table, every column ---
+if (($_GET['export'] ?? '') === 'csv') {
+    $csvSql = "SELECT * FROM faucet_claims"
+            . ($where ? " WHERE " . implode(" AND ", $where) : "")
+            . " ORDER BY created_at " . $filterSort . " LIMIT :lim";
+    $csvStmt = $pdo->prepare($csvSql);
+    foreach ($params as $k => $v) {
+        $csvStmt->bindValue($k, $v);
+    }
+    $csvStmt->bindValue(':lim', $limit, PDO::PARAM_INT);
+    $csvStmt->execute();
+
+    $columns = [];
+    for ($i = 0; $i < $csvStmt->columnCount(); $i++) {
+        $columns[] = $csvStmt->getColumnMeta($i)['name'];
+    }
+
+    // Times are UTC (db_use_utc above); write them as ISO 8601 with a Z so there is no doubt.
+    $timeColumns = ['created_at', 'updated_at'];
+    // Wallet names and browser strings come from users; stop spreadsheet apps running them as formulas.
+    $safeCell = function ($v) {
+        $v = (string)$v;
+        return ($v !== '' && strpos("=+-@\t\r", $v[0]) !== false && !is_numeric($v)) ? "'" . $v : $v;
+    };
+
+    $fileName = 'claims_' . implode('-', $filterStatuses ?: ['all']) . '_' . gmdate('Y-m-d_His') . 'Z.csv';
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="' . $fileName . '"');
+    header('Cache-Control: no-store');
+
+    $out = fopen('php://output', 'w');
+    fwrite($out, "\xEF\xBB\xBF");   // UTF-8 BOM so Excel reads non-English text correctly
+    fputcsv($out, $columns);
+    while ($row = $csvStmt->fetch(PDO::FETCH_ASSOC)) {
+        $line = [];
+        foreach ($columns as $col) {
+            $v = $row[$col];
+            if (in_array($col, $timeColumns, true) && $v !== null && $v !== '' && $v !== '0000-00-00 00:00:00') {
+                $ts = strtotime($v . ' UTC');
+                $v = $ts === false ? $v : gmdate('Y-m-d\TH:i:s\Z', $ts);
+            }
+            $line[] = $v === null ? '' : $safeCell($v);
+        }
+        fputcsv($out, $line);
+    }
+    fclose($out);
+    exit;
+}
 
 $sql = "
     SELECT id, invoice, ip_address, sats_requested, sats_sent, status, tx_reference, created_at,
@@ -1256,7 +1315,7 @@ if ($row) {
           <tbody>
             <?php foreach ($fundRows as $f): ?>
               <tr>
-                <td><?php echo htmlspecialchars($f['created_at'], ENT_QUOTES, 'UTF-8'); ?></td>
+                <td><?php echo utc_time($f['created_at']); ?></td>
                 <td><?php echo htmlspecialchars($f['kind'], ENT_QUOTES, 'UTF-8'); ?></td>
                 <td class="num"><?php echo number_format((int)$f['amount_sats']); ?></td>
                 <td><?php echo htmlspecialchars((string)$f['note'], ENT_QUOTES, 'UTF-8'); ?></td>
@@ -1307,6 +1366,7 @@ if ($row) {
 
       <!-- Filters -->
       <form method="get" class="filter-form">
+        <input type="hidden" name="tz_offset" value="<?php echo (int)$tzOffset; ?>" />
         <!-- Row 1: status + result options + apply -->
         <div class="filter-row">
           <span class="filter-row-title">Status:</span>
@@ -1346,6 +1406,8 @@ if ($row) {
                    value="<?php echo (int)$statN; ?>" />
           </label>
           <button type="submit" class="filter-button">Apply</button>
+          <button type="submit" name="export" value="csv" class="filter-button"
+                  title="Download the transactions matching these filters (same Show count and sort) with every column, as a .csv file">&#11015; CSV</button>
           <a href="?" class="filter-clear-btn">Clear filters</a>
         </div>
 
@@ -1391,7 +1453,7 @@ if ($row) {
             <input type="datetime-local" name="date_to" class="filter-datetime"
                    value="<?php echo htmlspecialchars($dateTo, ENT_QUOTES, 'UTF-8'); ?>" />
           </label>
-          <span class="tiny filter-note">(server time; overrides "Last 24h" when set)</span>
+          <span class="tiny filter-note">(your local time: <span data-tz-name>UTC</span>; overrides "Last 24h" when set)</span>
         </div>
       </form>
 
@@ -1505,6 +1567,7 @@ if ($row) {
                   <input type="hidden" name="search_amount" value="<?php echo htmlspecialchars($searchAmount, ENT_QUOTES, 'UTF-8'); ?>" />
                   <input type="hidden" name="date_from" value="<?php echo htmlspecialchars($dateFrom, ENT_QUOTES, 'UTF-8'); ?>" />
                   <input type="hidden" name="date_to" value="<?php echo htmlspecialchars($dateTo, ENT_QUOTES, 'UTF-8'); ?>" />
+                  <input type="hidden" name="tz_offset" value="<?php echo (int)$tzOffset; ?>" />
                   <input type="hidden" name="stat_n" value="<?php echo (int)$statN; ?>" />
 
                   <label class="tiny">Status:</label><small><?php echo strtoupper($c['status']); ?></small>
@@ -1565,8 +1628,8 @@ if ($row) {
                 }
                 ?>
               </td>
-              <td><?php echo htmlspecialchars($c['created_at'], ENT_QUOTES, 'UTF-8'); ?></td>
-              <td><?php echo htmlspecialchars($c['updated_at'], ENT_QUOTES, 'UTF-8'); ?></td>
+              <td><?php echo utc_time($c['created_at']); ?></td>
+              <td><?php echo utc_time($c['updated_at']); ?></td>
               <td><?php echo htmlspecialchars($c['admin_status'] ?? '—', ENT_QUOTES, 'UTF-8'); ?></td>
             </tr>
           <?php endforeach; ?>
@@ -1580,6 +1643,11 @@ if ($row) {
     </div>
   </div>
   <script src="../scripts/faucet.js" async defer></script>
+  <script src="../assets/localtime.js?v=202611131200"></script>
+  <script>
+    // Date filters are typed in local time; tell the server this browser's offset from UTC (minutes).
+    document.querySelectorAll('input[name="tz_offset"]').forEach(function (el) { el.value = new Date().getTimezoneOffset(); });
+  </script>
   <script>
     // Guards a normal (non-AJAX) form submit against double-clicks / accidental double
     // presses: disables the submit button the instant the form is submitted so a second

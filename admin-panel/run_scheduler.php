@@ -8,7 +8,11 @@
  * Access is protected by the same session/password as the admin panel.
  */
 
-session_start();
+// Same admin login as the admin panel (TSF_ADMIN session, see admin-session.php).
+if (file_exists(__DIR__ . '/../config.local.php')) require_once __DIR__ . '/../config.local.php';   // for $ADMIN_SESSION_HOURS
+require_once __DIR__ . '/admin-session.php';
+admin_session_start();
+session_write_close();   // done with the session; don't lock the admin panel while the scheduler runs
 header('Content-Type: text/plain; charset=utf-8');
 
 // --- Auth guard: must be logged-in admin ---
@@ -32,7 +36,7 @@ if (!file_exists($configFile)) {
     echo "ERROR: config.local.php not found.";
     exit;
 }
-require $configFile;
+require_once $configFile;
 
 $phpBin      = $PHP_CLI_PATH ?? 'php';
 $scheduler   = $SCHEDULER_FILE ?? (__DIR__ . '/scheduler_process.php');
