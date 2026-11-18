@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <title>Block Race</title>
-  <link rel="stylesheet" href="block-race.css">
+  <link rel="stylesheet" href="block-race.css?v=202611151200">
   <link rel="stylesheet" href="../shared/share.css">
   <script src="../../assets/analytics.js?v=202611101200" defer></script>
 </head>
@@ -55,6 +55,9 @@
           </label>
           <p class="paid-closed" id="paidClosed" hidden></p>
           <div id="paidFields" hidden>
+            <input type="text" id="nickIn" class="lnurl-in nick-in" maxlength="15"
+                   placeholder="Nickname for the leaderboard (optional)" aria-label="Nickname for the leaderboard (optional, max 15 characters)"
+                   autocomplete="nickname" spellcheck="false">
             <input type="text" id="lnurlIn" class="lnurl-in" placeholder="lnurl1&hellip; (optional &mdash; you can add it later)"
                    autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text">
             <div id="captchaBox" class="captcha-box"></div>
@@ -110,6 +113,27 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.5l6.8-4M8.6 13.5l6.8 4"/></svg>
   </button>
 
+  <button id="lbBtn" class="round-btn lb-btn" type="button" aria-label="Leaderboard" title="Leaderboard">&#127942;</button>
+
+  <div id="lbPanel" class="help" hidden role="dialog" aria-modal="true" aria-labelledby="lbTitle">
+    <div class="help-card lb-card">
+      <button id="lbClose" class="help-x" type="button" aria-label="Close leaderboard">&times;</button>
+      <h2 id="lbTitle">&#127942; Block Race leaderboard</h2>
+
+      <h3>All-time best</h3>
+      <div id="lbBest" class="lb-best">Loading&hellip;</div>
+
+      <h3>Today's top 10 <small id="lbDay"></small></h3>
+      <ol id="lbToday" class="lb-list"></ol>
+      <p id="lbEmpty" class="muted" hidden>No scores yet today &mdash; lock in for sats and be the first!</p>
+
+      <p class="lb-note">Scores from <strong>Play for real sats</strong> entries, checked by our server against the real block.
+      Your nickname, or your wallet's username if you don't set one, is shown here. Today resets at 00:00 UTC
+      (<span id="lbReset">&hellip;</span> your time).</p>
+      <button id="lbRefresh" class="help-ok" type="button">&#8635; Refresh</button>
+    </div>
+  </div>
+
   <div id="helpPanel" class="help" hidden role="dialog" aria-modal="true" aria-labelledby="helpTitle">
     <div class="help-card">
       <button id="helpClose" class="help-x" type="button" aria-label="Close help">&times;</button>
@@ -159,6 +183,9 @@
         entries close <strong><span id="helpWindow">8</span> minutes after the last block</strong> &mdash; so lock in early.</li>
         <li>Add your <strong>LNURL</strong> when you lock in, or any time later &mdash; even after the block is found. Our server
         checks your guesses against the real block and queues your sats the same way as a normal faucet claim.</li>
+        <li>Paid scores go on the <strong>&#127942; leaderboard</strong> (today's top 10 and the all-time best). Add an optional
+        <strong>nickname</strong> (up to 15 characters) next to your LNURL; without one we show your wallet's username, or
+        <em>Anonymous</em>.</li>
         <li>Playing for sats doesn't affect the faucet: you can still claim there as usual. Don't want sats? Leave it unticked
         and just play.</li>
       </ul>
@@ -182,7 +209,7 @@
     </div>
   </div>
 
-  <script src="block-race.js"></script>
+  <script src="block-race.js?v=202611151200"></script>
   <script src="../shared/share.js"></script>
 </body>
 </html>

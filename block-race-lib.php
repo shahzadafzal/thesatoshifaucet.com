@@ -10,6 +10,8 @@
 // Expects config.local.php to be loaded already. Every setting below has a default, so nothing new has
 // to be added to config.local.php unless you want to change it.
 
+require_once __DIR__ . '/lnurl-guard.php';   // script-UA, LNURL checksum/type and wallet-key checks
+
 const BR_SOURCE = 'block-race';
 
 function br_settings(): array {
@@ -127,6 +129,15 @@ function br_clean_lnurl(string $value): ?string {
     return $value;
 }
 
+// br_clean_lnurl() plus the anti-abuse checks (valid checksum, receive link, not login/withdraw).
+// Returns [lnurl or null, error message or null].
+function br_check_lnurl(string $value): array {
+    $lnurl = br_clean_lnurl($value);
+    if ($lnurl === null) return [null, null];
+    $c = lg_check_lnurl($lnurl);
+    return $c['ok'] ? [$lnurl, null] : [null, $c['message']];
+}
+
 // Same checks as claim.php: success, allowed hostname, token age.
 function br_verify_captcha(string $token, string $ip): bool {
     global $CAPTCHA_PROVIDER, $RECAPTCHA_SECRET_KEY, $HCAPTCHA_SECRET_KEY, $HCAPTCHA_ALLOWED_HOSTS, $HCAPTCHA_MAX_TOKEN_AGE_SECONDS;
@@ -202,16 +213,20 @@ function br_score(array $entry, array $block): array {
 // "Today" is the database server's calendar day, so the limit resets at its midnight.
 //   $statuses: which entries count, e.g. ['waiting','graded','claimed'] = still able to pay, or ['claimed'] = paid out
 //   $exceptId: leave this entry out (the one being checked)
+//   LNURLs are compared by wallet key (decoded host + path, without ?query), so the same wallet with a
+//   different "?c=…" or letter case still counts as one player (anti-abuse, 2026-11-18).
 function br_daily_count(PDO $pdo, string $ip, ?string $lnurl, array $statuses, int $exceptId = 0): int {
     $in = implode(',', array_map(fn($st) => $pdo->quote($st), $statuses));
-    $sql = "SELECT COUNT(*) FROM block_race_entries
-            WHERE created_at >= CURDATE() AND status IN ($in) AND id <> :id
-              AND (ip_address = :ip" . ($lnurl !== null && $lnurl !== '' ? " OR LOWER(lnurl) = LOWER(:l)" : "") . ")";
-    $stmt = $pdo->prepare($sql);
-    $params = [':id' => $exceptId, ':ip' => $ip];
-    if ($lnurl !== null && $lnurl !== '') $params[':l'] = $lnurl;
-    $stmt->execute($params);
-    return (int)$stmt->fetchColumn();
+    $key = lg_lnurl_key($lnurl);
+    $stmt = $pdo->prepare("SELECT ip_address, lnurl FROM block_race_entries
+                           WHERE created_at >= CURDATE() AND status IN ($in) AND id <> :id
+                             AND (ip_address = :ip" . ($key !== null ? " OR lnurl IS NOT NULL" : "") . ")");
+    $stmt->execute([':id' => $exceptId, ':ip' => $ip]);
+    $n = 0;
+    foreach ($stmt as $r) {
+        if ($r['ip_address'] === $ip || ($key !== null && lg_lnurl_key($r['lnurl']) === $key)) $n++;
+    }
+    return $n;
 }
 
 // Entries that can still turn into a payout, plus the ones that already did.
@@ -400,6 +415,99 @@ function br_trigger_scheduler(int $batch): void {
     } else {
         @exec($php . ' ' . $file . ' --batch=' . $batch . ' >> ' . $log . ' 2>&1 &');
     }
+}
+
+/* ================= Leaderboard ================= */
+
+const BR_NICK_MAX = 15;
+const BR_NICK_HELP = 'Nicknames can be up to 15 letters, numbers, spaces, _ or - (no links), and can\'t look like the site\'s staff. Change it, or leave it empty.';
+
+// Has add-block-race-nickname.sql been run? (So uploading the PHP before running the SQL doesn't break lock-ins.)
+function br_has_nickname(PDO $pdo): bool {
+    static $has = null;
+    if ($has === null) {
+        $has = (bool)$pdo->query("SHOW COLUMNS FROM block_race_entries LIKE 'nickname'")->fetch();
+    }
+    return $has;
+}
+
+// Nickname shown on the public leaderboard. Returns '' for "none", null when it isn't allowed.
+// Letters (any language), numbers, spaces, _ and - only: no links, no HTML, max 15 characters.
+function br_clean_nickname(string $value): ?string {
+    $value = trim(preg_replace('/\s+/u', ' ', $value) ?? '');
+    if ($value === '') return '';
+    if (mb_strlen($value, 'UTF-8') > BR_NICK_MAX) return null;
+    if (!preg_match('/^[\p{L}\p{N}\p{M} _\-]+$/u', $value)) return null;
+    // Don't let players pose as the site.
+    $flat = preg_replace('/[^a-z0-9]/', '', strtolower($value));
+    foreach (['admin', 'moderator', 'satoshifaucet', 'faucetteam', 'support', 'official'] as $word) {
+        if (strpos($flat, $word) !== false) return null;
+    }
+    return $value;
+}
+
+// The wallet username inside an LNURL-pay link (e.g. lnurl1... -> https://walletofsatoshi.com/.well-known/lnurlp/NAME -> NAME).
+// Display only, so the checksum isn't verified. Returns null when there is no username.
+function br_lnurl_username(?string $lnurl): ?string {
+    if ($lnurl === null || $lnurl === '') return null;
+    $s = strtolower(trim($lnurl));
+    $pos = strrpos($s, '1');
+    if (strpos($s, 'lnurl1') !== 0 || $pos === false || strlen($s) - $pos < 8) return null;
+    $charset = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+    $data = substr($s, $pos + 1, -6);   // drop the 6-character checksum
+    $acc = 0; $bits = 0; $url = '';
+    for ($i = 0, $n = strlen($data); $i < $n; $i++) {
+        $v = strpos($charset, $data[$i]);
+        if ($v === false) return null;
+        $acc = ($acc << 5) | $v;
+        $bits += 5;
+        if ($bits >= 8) {
+            $bits -= 8;
+            $url .= chr(($acc >> $bits) & 0xff);
+        }
+        $acc &= (1 << $bits) - 1;   // keep only the bits not written yet
+    }
+    if (!preg_match('#/\.well-known/lnurlp/([A-Za-z0-9._\-]{1,40})(?:[/?\#]|$)#', $url, $m)) return null;
+    return $m[1];
+}
+
+function br_display_name(array $row): string {
+    $nick = trim((string)($row['nickname'] ?? ''));
+    if ($nick !== '') return $nick;
+    return br_lnurl_username($row['lnurl'] ?? null) ?? 'Anonymous';
+}
+
+// Today's top N scores (UTC day) and the best score ever. Entries whose sats claim was blocked as farming are left out.
+function br_leaderboard(PDO $pdo, int $limit = 10): array {
+    $pdo->exec("SET time_zone = '+00:00'");
+    $nick = br_has_nickname($pdo) ? 'e.nickname' : 'NULL AS nickname';
+    $base = "SELECT e.target_height, e.spot_no, e.score_pct, e.sats, e.lnurl, $nick, e.graded_at
+             FROM block_race_entries e
+             LEFT JOIN faucet_claims c ON c.id = e.claim_id
+             WHERE e.score_pct IS NOT NULL AND (c.id IS NULL OR c.status <> 'blocked')";
+    $order = " ORDER BY e.score_pct DESC, e.graded_at ASC, e.id ASC";
+
+    $row = function (array $r): array {
+        return [
+            'name'   => br_display_name($r),
+            'score'  => (int)$r['score_pct'],
+            'sats'   => (int)$r['sats'],
+            'block'  => (int)$r['target_height'],
+            'spot'   => (int)$r['spot_no'],
+            'at'     => $r['graded_at'] ? gmdate('Y-m-d\TH:i:s\Z', strtotime($r['graded_at'] . ' UTC')) : null,
+        ];
+    };
+
+    $today = $pdo->prepare($base . " AND e.created_at >= UTC_DATE()" . $order . " LIMIT :n");
+    $today->bindValue(':n', max(1, min(50, $limit)), PDO::PARAM_INT);
+    $today->execute();
+    $best = $pdo->query($base . $order . " LIMIT 1")->fetch();
+
+    return [
+        'today'   => array_map($row, $today->fetchAll()),
+        'allTime' => $best ? $row($best) : null,
+        'day'     => gmdate('Y-m-d'),
+    ];
 }
 
 // What the browser is allowed to see about its own entry.

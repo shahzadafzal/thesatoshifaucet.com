@@ -35,16 +35,40 @@ function br_find_entry(PDO $pdo, string $token): ?array {
     return $stmt->fetch() ?: null;
 }
 
-// Is this LNURL already on another entry for the same block?
+// Is this wallet already on another entry for the same block? Compared by wallet key (decoded host + path,
+// without ?query), so "…/lnurlp/name?c=1" and "…?c=2" are the same wallet (anti-abuse, 2026-11-18).
 function br_lnurl_taken(PDO $pdo, int $height, string $lnurl, int $exceptId = 0): bool {
-    $stmt = $pdo->prepare("SELECT 1 FROM block_race_entries WHERE target_height = :h AND lnurl = :l AND id <> :id LIMIT 1");
-    $stmt->execute([':h' => $height, ':l' => $lnurl, ':id' => $exceptId]);
-    return (bool)$stmt->fetchColumn();
+    $key = lg_lnurl_key($lnurl);
+    $stmt = $pdo->prepare("SELECT lnurl FROM block_race_entries WHERE target_height = :h AND lnurl IS NOT NULL AND id <> :id");
+    $stmt->execute([':h' => $height, ':id' => $exceptId]);
+    foreach ($stmt as $r) {
+        if (strcasecmp($r['lnurl'], $lnurl) === 0 || ($key !== null && lg_lnurl_key($r['lnurl']) === $key)) return true;
+    }
+    return false;
 }
 
 $s = br_settings();
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+
+/* ---------- leaderboard (public; works even when paid play is switched off) ---------- */
+if ($action === 'leaderboard') {
+    // Everyone sees the same board, so build it at most every 20 seconds.
+    $cache = br_cache_file('leaderboard-v1');
+    if (is_file($cache) && time() - filemtime($cache) < 20 && ($hit = @file_get_contents($cache)) !== false) {
+        echo $hit;
+        exit;
+    }
+    try {
+        $json = json_encode(['ok' => true] + br_leaderboard(br_pdo(), 10));
+    } catch (Throwable $e) {
+        error_log('block-race.php leaderboard: ' . $e->getMessage());
+        br_fail('server', "Couldn't load the leaderboard right now.");
+    }
+    @file_put_contents($cache, $json);
+    echo $json;
+    exit;
+}
 
 if (!$s['enabled'] || $s['winners'] === 0) {
     br_fail('disabled', 'Playing for sats is switched off right now. You can still play for fun!', ['enabled' => false]);
@@ -87,6 +111,11 @@ try {
 
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') br_fail('method', 'Bad request.');
 
+    // Anti-abuse (2026-11-18): paid entries must come from a web browser, not a script (curl, python-requests...).
+    if (lg_script_ua((string)($_SERVER['HTTP_USER_AGENT'] ?? ''))) {
+        br_fail('client', 'Please play from a normal web browser.');
+    }
+
     /* ---------- lock ---------- */
     if ($action === 'lock') {
         $time = (float)($_POST['time'] ?? 0);
@@ -101,9 +130,11 @@ try {
         $lnurl = null;
         $rawLnurl = trim((string)($_POST['lnurl'] ?? ''));
         if ($rawLnurl !== '') {
-            $lnurl = br_clean_lnurl($rawLnurl);
-            if ($lnurl === null) br_fail('lnurl', 'That doesn\'t look like an LNURL (it starts with lnurl1…). Leave it empty and add it later if you like.');
+            [$lnurl, $lnurlErr] = br_check_lnurl($rawLnurl);
+            if ($lnurl === null) br_fail('lnurl', $lnurlErr ?? 'That doesn\'t look like an LNURL (it starts with lnurl1…). Leave it empty and add it later if you like.');
         }
+        $nickname = br_clean_nickname((string)($_POST['nickname'] ?? ''));
+        if ($nickname === null) br_fail('nickname', BR_NICK_HELP);
 
         $captcha = (string)($_POST['h-captcha-response'] ?? $_POST['g-recaptcha-response'] ?? '');
         if (!br_verify_captcha($captcha, $ip)) br_fail('captcha', 'CAPTCHA check failed. Please try again.');
@@ -146,10 +177,12 @@ try {
 
             $token = bin2hex(random_bytes(16));
             $spot = (int)$row['n'] + 1;
+            $withNick = br_has_nickname($pdo);
             $pdo->prepare("
                 INSERT INTO block_race_entries
-                    (token_hash, target_height, base_timestamp, spot_no, guess_time_min, guess_tx, guess_fee, lnurl, ip_address, user_agent)
-                VALUES (:th, :h, :bt, :spot, :gt, :gx, :gf, :l, :ip, :ua)
+                    (token_hash, target_height, base_timestamp, spot_no, guess_time_min, guess_tx, guess_fee, lnurl, ip_address, user_agent"
+                    . ($withNick ? ", nickname" : "") . ")
+                VALUES (:th, :h, :bt, :spot, :gt, :gx, :gf, :l, :ip, :ua" . ($withNick ? ", :nick" : "") . ")
             ")->execute([
                 ':th'   => hash('sha256', $token),
                 ':h'    => $target,
@@ -161,7 +194,7 @@ try {
                 ':l'    => $lnurl,
                 ':ip'   => $ip,
                 ':ua'   => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255),
-            ]);
+            ] + ($withNick ? [':nick' => $nickname === '' ? null : $nickname] : []));
         } finally {
             $pdo->query("SELECT RELEASE_LOCK('tsf_block_race_lock')");
         }
@@ -180,8 +213,10 @@ try {
     if (!$entry) br_fail('ticket', 'This entry was not found.');
 
     if ($action === 'attach') {
-        $lnurl = br_clean_lnurl((string)($_POST['lnurl'] ?? ''));
-        if ($lnurl === null) br_fail('lnurl', 'That doesn\'t look like an LNURL (it starts with lnurl1…).');
+        [$lnurl, $lnurlErr] = br_check_lnurl((string)($_POST['lnurl'] ?? ''));
+        if ($lnurl === null) br_fail('lnurl', $lnurlErr ?? 'That doesn\'t look like an LNURL (it starts with lnurl1…).');
+        $nickname = br_clean_nickname((string)($_POST['nickname'] ?? ''));
+        if ($nickname === null) br_fail('nickname', BR_NICK_HELP);
         if (!in_array($entry['status'], ['waiting', 'graded'], true) || !empty($entry['lnurl'])) {
             br_fail('state', 'This entry can no longer take an LNURL.', ['entry' => br_entry_public($entry)]);
         }
@@ -195,6 +230,10 @@ try {
         }
         $pdo->prepare("UPDATE block_race_entries SET lnurl = :l WHERE id = :id AND lnurl IS NULL")
             ->execute([':l' => $lnurl, ':id' => $entry['id']]);
+        if ($nickname !== '' && br_has_nickname($pdo)) {
+            $pdo->prepare("UPDATE block_race_entries SET nickname = :n WHERE id = :id")
+                ->execute([':n' => $nickname, ':id' => $entry['id']]);
+        }
         if ($entry['status'] === 'graded') {
             $r = br_create_claim($pdo, (int)$entry['id']);
             if ($r['ok']) br_trigger_scheduler(1);

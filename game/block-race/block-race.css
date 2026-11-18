@@ -150,6 +150,7 @@ button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
   font-size: 16px;   /* 16px stops iPhone zooming in on focus */
 }
 .lnurl-in:focus { outline: 2px solid rgba(52, 211, 153, 0.6); outline-offset: 1px; }
+.nick-in { margin-bottom: 6px; }
 .captcha-box { margin: 8px 0 4px; min-height: 0; }
 .captcha-box:empty { display: none; }
 
@@ -300,6 +301,29 @@ body.is-fs .help { padding-top: 12px; }   /* real full screen has no popup close
   color: #fff; font-size: 1.4rem; line-height: 1; cursor: pointer;
 }
 .help-x:hover { background: rgba(255, 255, 255, 0.2); }
+/* ---- Leaderboard (uses the help panel's card) ---- */
+.lb-btn { top: calc(var(--rb-top) + 184px + env(safe-area-inset-top)); }
+.lb-card h3 small { text-transform: none; letter-spacing: 0; color: rgba(238, 242, 248, 0.6); font-weight: 500; }
+.lb-list { list-style: none; margin: 0; padding: 0; counter-reset: lb; }
+.lb-row {
+  display: grid;
+  grid-template-columns: 2.1em minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 8px;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--line);
+}
+.lb-rank { font-weight: 800; text-align: center; font-variant-numeric: tabular-nums; }
+.lb-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-name.anon { font-weight: 500; font-style: italic; opacity: 0.75; }
+.lb-score { font-weight: 800; color: #34d399; font-variant-numeric: tabular-nums; text-align: right; }
+.lb-meta { grid-column: 2 / 4; font-size: 0.74rem; opacity: 0.65; }
+.lb-row.me { background: rgba(247, 147, 26, 0.12); border-radius: 8px; }
+.lb-row.me .lb-name::after { content: ' (you)'; font-weight: 500; color: var(--accent); }
+.lb-best .lb-row { border: 1px solid rgba(255, 209, 102, 0.45); border-radius: 10px; background: rgba(255, 209, 102, 0.08); }
+.lb-best .lb-score { color: #ffd166; }
+.lb-note { margin-top: 12px !important; font-size: 0.76rem; opacity: 0.75; }
+
 .help-ok {
   display: block; width: 100%; margin-top: 16px; padding: 11px 14px;
   border: 0; border-radius: 10px;

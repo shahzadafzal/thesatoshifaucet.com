@@ -29,6 +29,8 @@
     claimPollMs: 60000,              // ...and a queued claim's payout status this often
     maxTickets: 5,
     ticketsKey: 'satoshiFaucet.blockRace.tickets',
+    nickKey: 'satoshiFaucet.blockRace.nickname',   // remembered leaderboard nickname
+    nickMax: 15,
     restPollMs: 8000,                // fallback polling while the WebSocket is down
     wsRetryMinMs: 2000,
     wsRetryMaxMs: 30000,
@@ -748,6 +750,7 @@
     toggle.disabled = !!closed;
     box.classList.toggle('is-closed', !!closed);
     $('lnurlIn').disabled = !!closed;
+    if ($('nickIn')) $('nickIn').disabled = !!closed;
     // keep the tick and the fields (LNURL, captcha) on screen; they come back to life when entries reopen
     $('paidFields').hidden = !toggle.checked;
     $('paidClosed').hidden = !closed;
@@ -856,11 +859,27 @@
     }
   }
 
-  async function attachLnurl(t, input, btn) {
+  // Leaderboard nickname: optional, max 15 characters, remembered on this device.
+  const savedNick = () => (lsGet(CONFIG.nickKey) || '').slice(0, CONFIG.nickMax);
+  const cleanNick = (v) => String(v || '').replace(/\s+/g, ' ').trim().slice(0, CONFIG.nickMax);
+  function nickInput() {
+    const input = el('input', 'lnurl-in nick-in');
+    input.type = 'text';
+    input.maxLength = CONFIG.nickMax;
+    input.placeholder = 'Nickname for the leaderboard (optional)';
+    input.spellcheck = false;
+    input.setAttribute('aria-label', 'Nickname for the leaderboard (optional, max 15 characters)');
+    input.value = savedNick();
+    return input;
+  }
+
+  async function attachLnurl(t, input, btn, nickIn) {
     const lnurl = input.value.trim();
     if (!lnurl) { input.focus(); return; }
+    const nickname = cleanNick(nickIn ? nickIn.value : savedNick());
     btn.disabled = true;
-    const j = await api('attach', { token: t.token, lnurl });
+    const j = await api('attach', { token: t.token, lnurl, nickname });
+    if (j && j.ok) lsSet(CONFIG.nickKey, nickname);
     btn.disabled = false;
     if (j && j.entry) { t.entry = j.entry; saveTickets(); }
     if (!j || !j.ok) { showNote('⚠️ ' + ((j && j.message) || 'Something went wrong.')); }
@@ -875,7 +894,11 @@
   }
 
   function lnurlRow(t, label) {
+    const box = el('div', '');
+    const nick = nickInput();
+    box.appendChild(nick);
     const row = el('div', 'row');
+    box.appendChild(row);
     const input = el('input', 'lnurl-in');
     input.type = 'text';
     input.placeholder = 'lnurl1…';
@@ -885,11 +908,11 @@
     input.setAttribute('aria-label', 'Your LNURL');
     const btn = el('button', '', label);
     btn.type = 'button';
-    btn.addEventListener('click', () => { sfx.unlock(); attachLnurl(t, input, btn); });
+    btn.addEventListener('click', () => { sfx.unlock(); attachLnurl(t, input, btn, nick); });
     input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') btn.click(); });
     row.appendChild(input);
     row.appendChild(btn);
-    return row;
+    return box;
   }
 
   function scoreLine(e) {
@@ -1042,7 +1065,8 @@
       const btn = $('lockBtn');
       btn.disabled = true;
       btn.textContent = '⏳ Locking in…';
-      const body = { target, time: guesses.time, tx: guesses.tx, fee: guesses.fee, lnurl: $('lnurlIn').value.trim() };
+      const nickname = cleanNick($('nickIn') ? $('nickIn').value : '');
+      const body = { target, time: guesses.time, tx: guesses.tx, fee: guesses.fee, lnurl: $('lnurlIn').value.trim(), nickname };
       body[paid.captcha.provider === 'google' ? 'g-recaptcha-response' : 'h-captcha-response'] = token;
       const j = await api('lock', body);
       locking = false;
@@ -1056,6 +1080,7 @@
         if (j && ['stale', 'closed', 'full', 'duplicate'].includes(j.error)) loadInfo();
         return;   // still in the guess view: they can retry, or untick and play for fun
       }
+      lsSet(CONFIG.nickKey, nickname);   // keep it for next time
       addTicket({ token: j.token, target, entry: j.entry });
       if (window.track) window.track('block_race_paid_entry', { spot: j.spot });
       $('lnurlIn').value = '';
@@ -1222,6 +1247,80 @@
   renderSoundBtn();
 
   // help panel (opens automatically on a first visit)
+  /* ================= Leaderboard ================= */
+  const lbPanel = $('lbPanel');
+  let lbLoading = false;
+
+  function lbRow(r, rank) {
+    const li = el('li', 'lb-row');
+    // highlight entries this browser made (its tickets know the block and spot)
+    if (paid.tickets.some((t) => t.target === r.block && t.entry && t.entry.spot === r.spot)) li.classList.add('me');
+    li.appendChild(el('span', 'lb-rank', rank));
+    li.appendChild(el('span', 'lb-name' + (r.name === 'Anonymous' ? ' anon' : ''), r.name));   // textContent: names are never HTML
+    li.appendChild(el('span', 'lb-score', r.score + '%'));
+    let when = '';
+    if (r.at) {
+      const d = new Date(r.at);
+      if (!isNaN(d)) when = ' · ' + d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    }
+    li.appendChild(el('span', 'lb-meta', 'Block #' + fmtInt(r.block) + ' · ' + fmtSats(r.sats) + when));
+    return li;
+  }
+
+  async function loadLeaderboard() {
+    if (lbLoading) return;
+    lbLoading = true;
+    $('lbRefresh').disabled = true;
+    const j = await api('leaderboard');
+    lbLoading = false;
+    $('lbRefresh').disabled = false;
+    const list = $('lbToday');
+    const best = $('lbBest');
+    if (!j || !j.ok) {
+      best.textContent = (j && j.message) || "Couldn't load the leaderboard.";
+      list.textContent = '';
+      $('lbEmpty').hidden = true;
+      return;
+    }
+    best.textContent = '';
+    if (j.allTime) {
+      const wrap = el('ol', 'lb-list');
+      wrap.appendChild(lbRow(j.allTime, '👑'));
+      best.appendChild(wrap);
+    } else {
+      best.appendChild(el('p', 'muted', 'No scores yet.'));
+    }
+    list.textContent = '';
+    const medals = ['🥇', '🥈', '🥉'];
+    j.today.forEach((r, i) => list.appendChild(lbRow(r, medals[i] || String(i + 1))));
+    $('lbEmpty').hidden = j.today.length > 0;
+    setText('lbDay', j.day ? '(' + j.day + ' UTC)' : '');
+  }
+
+  function openLeaderboard() {
+    lbPanel.hidden = false;
+    const reset = new Date();
+    reset.setUTCHours(24, 0, 0, 0);
+    setText('lbReset', reset.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }));
+    $('lbClose').focus({ preventScroll: true });
+    loadLeaderboard();
+    if (window.track) window.track('block_race_leaderboard');
+  }
+  function closeLeaderboard() { lbPanel.hidden = true; sfx.unlock(); }
+  if (lbPanel && $('lbBtn')) {   // skip quietly if an older index.html is still cached
+    $('lbBtn').addEventListener('click', openLeaderboard);
+    $('lbClose').addEventListener('click', closeLeaderboard);
+    $('lbRefresh').addEventListener('click', loadLeaderboard);
+    lbPanel.addEventListener('click', (e) => { if (e.target === lbPanel) closeLeaderboard(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !lbPanel.hidden) closeLeaderboard(); });
+  }
+
+  // Prefill the nickname box with the one used last time.
+  if ($('nickIn')) {
+    $('nickIn').value = savedNick();
+    $('nickIn').addEventListener('change', () => lsSet(CONFIG.nickKey, cleanNick($('nickIn').value)));
+  }
+
   const helpPanel = $('helpPanel');
   function openHelp() {
     helpPanel.hidden = false;

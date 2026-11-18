@@ -11,6 +11,7 @@ if (!file_exists($configFile)) {
     echo json_encode(['status'=>'error','message'=>'Server config missing.']); exit;
 }
 require $configFile;
+require_once __DIR__ . '/lnurl-guard.php';   // script-UA, LNURL checksum/type and wallet-key checks
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['captcha_config'])) {
     $provider = isset($CAPTCHA_PROVIDER) ? strtolower($CAPTCHA_PROVIDER) : 'hcaptcha';
@@ -264,6 +265,15 @@ $invoice = isset($_POST['address']) ? trim($_POST['address']) : '';
 $invoice = trim($invoice);
 $invLower = strtolower($invoice);
 
+// Anti-abuse (2026-11-18): claims must come from a web browser, not a script (curl, python-requests, wget...).
+if (lg_script_ua($userAgent)) {
+    echo json_encode([
+        'status'  => 'error',
+        'message' => 'Please claim from a normal web browser.'
+    ]);
+    exit;
+}
+
 if (strpos($invLower, 'lnurl1') !== 0) {
     echo json_encode([
         'status'  => 'error',
@@ -294,6 +304,15 @@ if (!preg_match('/^lnurl1[02-9ac-hj-np-z]+$/', $invLower)) {
     ]);
     exit;
 }
+
+// Anti-abuse (2026-11-18): checksum must be valid and it must be a receive (pay) link, not login/withdraw.
+// $lnurlKey = the wallet (host + path, without ?query), used below for the 7-day check.
+$lnurlCheck = lg_check_lnurl($invoice);
+if (!$lnurlCheck['ok']) {
+    echo json_encode(['status' => 'error', 'message' => $lnurlCheck['message']]);
+    exit;
+}
+$lnurlKey = $lnurlCheck['key'];
 
 if ($captchaToken === '') {
     echo json_encode(['status'=>'error','message'=>'Please complete the CAPTCHA.']); exit;
@@ -475,6 +494,28 @@ try {
     // Execute the query with the provided invoice and user IP
     $check->execute([':inv' => $invoice, ':ip' => $userIp]);
     $row = $check->fetch();
+
+    // Same wallet with a different LNURL text (e.g. "…/lnurlp/name?c=123", upper/lower case): compare the
+    // decoded wallet key instead of the raw string. Blocked claims count too, so a wallet blocked for
+    // farming can't come straight back within the 7 days.
+    if (!$row) {
+        $recent = $pdo->query("
+            SELECT invoice, ip_address, status, sats_sent, created_at
+            FROM faucet_claims
+            WHERE created_at >= (NOW() - INTERVAL 7 DAY)
+            AND status IN ('paid', 'processing', 'pending', 'blocked')
+            AND claim_source <> 'block-race'
+            ORDER BY created_at DESC
+        ");
+        foreach ($recent as $r) {
+            if (lg_lnurl_key($r['invoice']) === $lnurlKey) {
+                $row = $r;
+                $row['ip_address'] = $userIp;    // never echo another visitor's IP back
+                if ($row['status'] === 'blocked') $row['status'] = 'processing';   // don't reveal the block
+                break;
+            }
+        }
+    }
 
     if ($row) {
         $msg = ($row['status'] === 'paid')
